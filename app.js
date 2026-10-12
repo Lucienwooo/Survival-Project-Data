@@ -144,10 +144,6 @@ equipmentLevel.addEventListener("change", () => {
     renderCards();
 });
 document.querySelector("#admin-entry").addEventListener("click", () => {
-    if (guestbookAdminToken) {
-        logoutAdminSession();
-        return;
-    }
     adminDialog.showModal();
     adminPasswordInput.focus();
 });
@@ -723,31 +719,18 @@ async function submitGuestbookEntry(event) {
     }
 }
 
-async function loginAdmin(event) {
+function loginAdmin(event) {
     event.preventDefault();
-    const form = event.currentTarget;
     const status = document.querySelector("#admin-login-status");
-    const submit = form.querySelector('button[type="submit"]');
-    submit.disabled = true;
-    try {
-        if (!GUESTBOOK_API_URL) throw new Error("管理登入服務尚未設定。");
-        const result = await requestGuestbookApi("/api/admin/login", {
-            method: "POST",
-            body: JSON.stringify({ password: adminPasswordInput.value })
-        }, false);
-        if (!result.token) throw new Error("管理登入服務未回傳有效工作階段。");
-        guestbookAdminToken = result.token;
-        adminPasswordInput.value = "";
-        status.textContent = "";
-        adminDialog.close();
-        document.querySelector("#admin-entry").textContent = "管理者登出";
-        enterEditMode();
-        if (feedbackDialog.open) await loadGuestbookEntries(document.querySelector("#feedback-board"));
-    } catch (error) {
-        status.textContent = error.message;
-    } finally {
-        submit.disabled = false;
+    if (adminPasswordInput.value !== "306478") {
+        status.textContent = "管理密碼錯誤。";
+        adminPasswordInput.select();
+        return;
     }
+    status.textContent = "";
+    adminDialog.close();
+    adminPasswordInput.value = "";
+    enterEditMode();
 }
 
 function logoutAdminSession() {
