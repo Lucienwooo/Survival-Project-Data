@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="zh-Hant" data-theme="dark">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#111713">
+    <meta name="description" content="Survival Project 裝備卡圖鑑：瀏覽 36 種裝備，搜尋名稱並切換第 1 至第 9 級卡圖。">
+    <title>裝備卡圖鑑 | Survival Project Archive</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./styles.css?v=19">
+    <script type="module" src="./app.js?v=26"></script>
+</head>
+<body>
+    <header class="site-header">
+        <a class="brand" href="./" aria-label="Survival Project Archive 首頁">
+            <span class="brand-mark">SP</span>
+            <span class="brand-name">SURVIVAL PROJECT <span>/ ARCHIVE</span></span>
+        </a>
+        <div class="header-tools">
+            <div class="header-note"><span class="live-mark"></span> CARD DATABASE <span class="header-version">繁體中文索引</span></div>
+            <button id="theme-toggle" class="theme-toggle" type="button" aria-label="切換至淺色主題" aria-pressed="false"><span aria-hidden="true">☾</span></button>
+        </div>
+    </header>
+
+    <main class="page-shell">
+        <section class="page-intro" aria-labelledby="page-title">
+            <div class="intro-copy">
+                <p class="eyebrow"><span>COLLECTION 01</span><span class="eyebrow-rule"></span><span>FIELD INDEX</span></p>
+                <h1 id="page-title"><a href="./">裝備卡<span>圖鑑</span></a></h1>
+                <p class="intro-subtitle">四種屬性 × 九種裝備類型</p>
+            </div>
+            <div class="intro-stats" aria-label="圖鑑資料統計">
+                <div class="stat-block"><strong id="stat-total">--</strong><span>收錄卡片</span></div>
+                <div class="stat-block"><strong>09</strong><span>可選裝備等級</span></div>
+                <div class="stat-block"><strong>01</strong><span>資料版本</span></div>
+            </div>
+            <div class="intro-index" aria-hidden="true">SP<br><span>001</span></div>
+            <div class="intro-actions">
+                <button id="toggle-compare" class="compare-toggle" type="button" aria-controls="compare-panel" aria-expanded="false">裝備預覽</button>
+                <a id="open-feedback" class="feedback-button" href="#player-comments">玩家留言</a>
+                <button id="open-sponsor" class="sponsor-button" type="button">無情贊助</button>
+            </div>
+        </section>
+
+        <section id="compare-panel" class="compare-panel" data-comparison-index="0" aria-labelledby="compare-heading" hidden>
+            <div class="compare-panel-heading">
+                <h2 id="compare-heading">裝備預覽</h2>
+                <div class="character-picker">
+                    <button id="character-select-button" class="character-select-button" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="character-picker-menu">
+                    <img id="selected-character-portrait" class="selected-character-portrait" src="./images/characters/images_interface_room_char_select_ch_13_btn_1_c.png" alt="">
+                    <span class="character-select-copy"><span>角色</span><strong id="selected-character-name" class="selected-character-name">Xyrho</strong></span>
+                    <span class="character-select-arrow" aria-hidden="true">▾</span>
+                    </button>
+                    <div id="character-picker-menu" class="character-picker-menu" role="menu" aria-label="選擇角色" hidden>
+                        <p class="character-picker-note">CHARACTER SELECT / 12</p>
+                        <div id="character-options" class="character-options"></div>
+                    </div>
+                    <button class="compare-lock-toggle" type="button" aria-pressed="false">鎖定</button>
+                </div>
+            </div>
+            <div class="compare-slots">
+                <article class="compare-slot" data-slot="magic">
+                    <h3>魔法</h3>
+                    <div class="compare-slot-content"></div>
+                </article>
+                <article class="compare-slot" data-slot="weapon">
+                    <h3>武器</h3>
+                    <div class="compare-slot-content"></div>
+                </article>
+                <article class="compare-slot" data-slot="armor">
+                    <h3>防具</h3>
+                    <div class="compare-slot-content"></div>
+                </article>
+            </div>
+            <section id="compare-activation" class="compare-activation" aria-label="裝備發動率">
+                <span class="activation-heading">發動率</span>
+                <div id="compare-activation-list" class="compare-activation-list" aria-live="polite">
+                    <div class="activation-cell" data-slot="magic"><span>--</span></div>
+                    <div class="activation-cell" data-slot="weapon"><span>--</span></div>
+                    <div class="activation-cell" data-slot="armor"><span>--</span></div>
+                </div>
+            </section>
+            <section class="compare-summary" aria-labelledby="compare-summary-heading">
+                <div class="compare-summary-heading">
+                    <h3 id="compare-summary-heading">總能力值</h3>
+                </div>
+                <div id="compare-total-list" class="compare-total-list" aria-live="polite">
+                    <div class="compare-total-cell" data-slot="magic"><span class="compare-summary-empty">--</span></div>
+                    <div class="compare-total-cell" data-slot="weapon"><span class="compare-summary-empty">--</span></div>
+                    <div class="compare-total-cell" data-slot="armor"><span class="compare-summary-empty">--</span></div>
+                </div>
+            </section>
+        </section>
+        <div id="compare-panel-actions" class="compare-panel-actions" hidden>
+            <button id="add-compare-panel" class="compare-add-panel" type="button" aria-controls="compare-panel-2">增加預覽欄位</button>
+            <button id="clear-compare-panels" class="compare-add-panel compare-clear-panels" type="button" aria-controls="compare-panel-2" hidden>清除欄位</button>
+        </div>
+
+        <div class="catalog-layout">
+            <aside class="filter-panel" aria-label="圖鑑篩選">
+                <div class="filter-heading">
+                    <h2>索引條件</h2>
+                    <span>FILTER / 01</span>
+                </div>
+                <div class="filter-field search-field">
+                    <label for="search-input">快速搜尋</label>
+                    <div class="search-control">
+                        <span class="search-mark" aria-hidden="true"></span>
+                        <input id="search-input" type="search" placeholder="裝備名稱或屬性" autocomplete="off">
+                        <kbd>/</kbd>
+                    </div>
+                </div>
+                <div class="filter-field">
+                    <label for="filter-element">屬性</label>
+                    <select id="filter-element">
+                        <option value="火">火</option>
+                        <option value="水">水</option>
+                        <option value="土">土</option>
+                        <option value="風">風</option>
+                        <option value="" selected>全部</option>
+                    </select>
+                </div>
+                <div class="filter-field">
+                    <label for="filter-category">類別</label>
+                    <select id="filter-category">
+                        <option value="" selected>全部</option>
+                        <option value="magic">魔法</option>
+                        <option value="axe">斧</option>
+                        <option value="sword">劍</option>
+                        <option value="wand">杖</option>
+                        <option value="bow">弓</option>
+                        <option value="shield">盾</option>
+                        <option value="pendant">垂</option>
+                        <option value="armor">甲</option>
+                        <option value="boots">靴</option>
+                    </select>
+                </div>
+                <fieldset id="effect-filters" class="effect-filter-fieldset">
+                    <legend>能力條件</legend>
+                    <p id="effect-filter-note" class="effect-filter-note" hidden>能力條件會依所選等級換算。</p>
+                    <div id="effect-filter-options" class="effect-filter-options"></div>
+                </fieldset>
+                <button class="reset-button" id="reset-filters" type="button"><span aria-hidden="true">↺</span> 重設篩選</button>
+                <div class="filter-footnote">
+                    <span class="footnote-rule"></span>
+                    <p>預設顯示第 9 級卡圖；切換等級即可查看其他卡面。</p>
+                </div>
+            </aside>
+
+            <section class="results-panel" aria-labelledby="results-heading">
+                <div class="results-toolbar">
+                    <div>
+                        <p class="eyebrow results-eyebrow">CATALOG / <span id="visible-count">--</span></p>
+                        <h2 id="results-heading">所有裝備</h2>
+                    </div>
+                    <div class="catalog-controls">
+                        <label class="level-control" for="equipment-level">
+                            <span>裝備等級</span>
+                            <select id="equipment-level">
+                                <option value="9" selected>第 9 級</option>
+                                <option value="8">第 8 級</option>
+                                <option value="7">第 7 級</option>
+                                <option value="6">第 6 級</option>
+                                <option value="5">第 5 級</option>
+                                <option value="4">第 4 級</option>
+                                <option value="3">第 3 級</option>
+                                <option value="2">第 2 級</option>
+                                <option value="1">第 1 級</option>
+                            </select>
+                        </label>
+                        <label class="skill-control" for="filter-skill-one">
+                            <span>特殊技能 S1</span>
+                            <select id="filter-skill-one"><option value="">全部</option></select>
+                        </label>
+                        <label class="skill-control" for="filter-skill-two">
+                            <span>特殊技能 S2</span>
+                            <select id="filter-skill-two"><option value="">全部</option></select>
+                        </label>
+                    </div>
+                </div>
+                <div id="editor-toolbar" class="editor-toolbar" hidden>
+                    <span class="editor-status">按儲存按鈕保存至此瀏覽器</span>
+                    <button id="save-all-edits" type="button">儲存所有變更</button>
+                    <button id="export-card-data" type="button">匯出 JSON</button>
+                        <button id="import-card-data" type="button">匯入 JSON</button>
+                        <input id="import-card-file" type="file" accept="application/json,.json" hidden>
+                    <button id="exit-edit-mode" type="button" aria-label="離開管理編輯模式">結束編輯</button>
+                </div>
+                <div id="load-status" class="load-status" role="status" aria-live="polite">正在讀取卡片資料...</div>
+                <div id="card-grid" class="card-grid" aria-live="polite"></div>
+                <div id="empty-state" class="empty-state" hidden>
+                    <span class="empty-symbol" aria-hidden="true">⌕</span>
+                    <h3>沒有符合條件的卡片</h3>
+                    <p>調整關鍵字或篩選條件後再試一次。</p>
+                </div>
+            </section>
+        </div>
+        <section id="player-comments" class="player-comments" aria-labelledby="player-comments-title">
+            <div class="player-comments-heading">
+                <h2 id="player-comments-title">玩家留言</h2>
+                <p>歡迎回報資料錯誤、分享攻略或交流遊戲資訊。</p>
+            </div>
+            <div id="giscus-comments" class="giscus-comments" aria-label="玩家留言討論區"></div>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <span>SURVIVAL PROJECT / CARD ARCHIVE</span>
+        <span class="footer-visits" aria-label="本日造訪次數，每個瀏覽器每日計入一次">
+            <img id="visit-counter" data-src="https://hits.sh/lucienwooo.github.io/Survival-Project-Data.svg?style=flat-square&amp;label=%E4%BB%8A%E6%97%A5&amp;color=transparent&amp;labelColor=transparent" alt="本日造訪次數">
+            <span id="visit-counter-fallback" class="footer-visits-fallback" hidden>--</span>
+        </span>
+        <span class="footer-access">靜態圖鑑 · <button id="admin-entry" class="admin-entry" type="button" aria-haspopup="dialog" aria-controls="admin-dialog">管理登入</button></span>
+    </footer>
+
+    <dialog id="sponsor-dialog" class="sponsor-dialog" aria-labelledby="sponsor-title">
+        <div class="dialog-topline">
+            <span id="sponsor-title">無情贊助</span>
+            <button class="dialog-close" id="close-sponsor" type="button" aria-label="關閉贊助視窗">×</button>
+        </div>
+        <div class="sponsor-dialog-body">
+            <section class="sponsor-section">
+                <h3>免費贊助</h3>
+                <p>點擊下方的蝦皮／MOMO 分潤連結，購買任何商品或下單自己的購物車，即可贊助到我。</p>
+                <div class="sponsor-actions">
+                    <a class="sponsor-link" href="https://s.shopee.tw/3qLtXtL3XE" target="_blank" rel="noopener noreferrer">前往蝦皮分潤連結</a>
+                    <a class="sponsor-link" href="https://s.momoshop.com.tw/s/TtvTDUeB" target="_blank" rel="noopener noreferrer">前往 MOMO 分潤</a>
+                </div>
+            </section>
+            <section class="sponsor-section sponsor-qr-section">
+                <h3>若不嫌棄，請我喝飲料</h3>
+                <p>贊助 QR code（支援 Line Pay / PayPal / Apple Pay / Google Pay）</p>
+                <img class="sponsor-qr" src="./images/mimic-sponsor-qr.png" alt="贊助付款 QR code" width="512" height="512">
+            </section>
+            <p class="sponsor-signature">By Lucienwooo</p>
+        </div>
+    </dialog>
+    <dialog id="admin-dialog" class="admin-dialog" aria-labelledby="admin-dialog-title">
+        <form id="admin-form" class="admin-form">
+            <div class="dialog-topline">
+                <span id="admin-dialog-title">管理編輯</span>
+                <button class="dialog-close" id="close-admin-dialog" type="button" aria-label="關閉密碼視窗">×</button>
+            </div>
+            <label for="admin-password">輸入管理密碼</label>
+            <input id="admin-password" type="password" autocomplete="current-password" required>
+            <p id="admin-login-status" class="admin-login-status" role="status" aria-live="polite"></p>
+            <button class="admin-unlock-button" type="submit">解鎖編輯</button>
+        </form>
+    </dialog>
+</body>
+</html>
