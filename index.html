@@ -9,8 +9,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./styles.css?v=6">
-    <script type="module" src="./app.js?v=11"></script>
+    <link rel="stylesheet" href="./styles.css?v=8">
+    <script type="module" src="./app.js?v=12"></script>
 </head>
 <body>
     <header class="site-header">
@@ -182,6 +182,10 @@
 
     <footer class="site-footer">
         <span>SURVIVAL PROJECT / CARD ARCHIVE</span>
+        <span class="footer-visits" aria-label="網站累計造訪次數">
+            <img id="visit-counter" data-src="https://hits.sh/lucienwooo.github.io/Survival-Project-Data.svg?style=flat-square&amp;label=%E9%80%A0%E8%A8%AA&amp;color=transparent&amp;labelColor=transparent" alt="網站累計造訪次數">
+            <span id="visit-counter-fallback" class="footer-visits-fallback" hidden>--</span>
+        </span>
         <span class="footer-access">靜態圖鑑 · <button id="admin-entry" class="admin-entry" type="button" aria-haspopup="dialog" aria-controls="admin-dialog">無需登入</button></span>
     </footer>
 
@@ -190,7 +194,22 @@
             <span id="sponsor-title">無情贊助</span>
             <button class="dialog-close" id="close-sponsor" type="button" aria-label="關閉贊助視窗">×</button>
         </div>
-        <div class="sponsor-dialog-body" aria-hidden="true"></div>
+        <div class="sponsor-dialog-body">
+            <section class="sponsor-section">
+                <h3>免費贊助</h3>
+                <p>點擊下方的蝦皮／MOMO 分潤連結，購買任何商品或下單自己的購物車，即可贊助到我。</p>
+                <div class="sponsor-actions">
+                    <a class="sponsor-link" href="https://s.shopee.tw/3qLtXtL3XE" target="_blank" rel="noopener noreferrer">前往蝦皮分潤連結</a>
+                    <a class="sponsor-link" href="https://s.momoshop.com.tw/s/TtvTDUeB" target="_blank" rel="noopener noreferrer">前往 MOMO 分潤</a>
+                </div>
+            </section>
+            <section class="sponsor-section sponsor-qr-section">
+                <h3>若不嫌棄，請我喝飲料</h3>
+                <p>贊助 QR code（支援 Line Pay / PayPal / Apple Pay / Google Pay）</p>
+                <img class="sponsor-qr" src="./images/mimic-sponsor-qr.png" alt="贊助付款 QR code" width="512" height="512">
+            </section>
+            <p class="sponsor-signature">By Lucienwooo</p>
+        </div>
     </dialog>
     <dialog id="admin-dialog" class="admin-dialog" aria-labelledby="admin-dialog-title">
         <form id="admin-form" class="admin-form">

@@ -73,6 +73,14 @@ themeToggle.addEventListener("click", () => {
 const sponsorDialog = document.querySelector("#sponsor-dialog");
 document.querySelector("#open-sponsor").addEventListener("click", () => sponsorDialog.showModal());
 document.querySelector("#close-sponsor").addEventListener("click", () => sponsorDialog.close());
+const visitCounter = document.querySelector("#visit-counter");
+visitCounter.addEventListener("error", () => {
+    visitCounter.hidden = true;
+    document.querySelector("#visit-counter-fallback").hidden = false;
+}, { once: true });
+const visitCounterUrl = new URL(visitCounter.dataset.src);
+visitCounterUrl.searchParams.set("_", Date.now().toString());
+visitCounter.src = visitCounterUrl.href;
 searchInput.addEventListener("input", renderCards);
 elementFilter.addEventListener("change", renderCards);
 skillOneFilter.addEventListener("change", renderCards);
