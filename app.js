@@ -1,13 +1,13 @@
-const DATA_URL = new URL("./data/cards.json?v=11", import.meta.url);
+const DATA_URL = new URL("./data/cards.json?v=13", import.meta.url);
 const ART_BASE_URL = new URL("./images/global_card_images/", import.meta.url);
 const CHARACTER_ART_URL = new URL("./images/characters/", import.meta.url);
-const GOLD_NUMBER_URL = new URL("./images/card_effects/images_global_card_out_line_l_gold_number.png", import.meta.url);
 const elementArtwork = [
     ["火", "fire"],
     ["水", "water"],
     ["土", "earth"],
     ["風", "wind"]
 ];
+const GUESTBOOK_API_URL = window.SURVIVAL_GUESTBOOK_API?.trim().replace(/\/+$/, "") || "";
 
 const effectLabels = {
     max_speed: ["增加最大速度", "減少最大速度"],
@@ -21,10 +21,50 @@ const effectLabels = {
     bp_recovery: ["增加BP恢復", "減少BP恢復"],
     mp_recovery: ["增加MP恢復", "減少MP恢復"],
     weapon_speed: ["增加武器速度", "減少武器速度"],
-    vibration_rate: ["震動率增加", "震動率減少"]
+    vibration_rate: ["震動率增加", "震動率減少"],
+    acceleration: ["增加加速度", "減少加速度"]
+};
+const effectLabelAliases = {
+    "攻擊延遲減少": { key: "attack_delay", increase: false }
 };
 
-const smallArtworkOnly = new Set(["2:fire:wand"]);
+const weaponSpecialSkillOptions = [
+    "忽略對方防禦 36%",
+    "不能近程攻擊3秒 36%",
+    "不可遠程攻擊3秒 36%",
+    "不可發動特殊技能12.5秒 36%",
+    "不可使用鎧甲卡片12.5秒 36%",
+    "反彈",
+    "三連射 36%",
+    "毒傷害 每秒-8 36%",
+    "不可奔跑7秒 36%",
+    "喪失防禦力 2.5秒 36%",
+    "反轉 3 36%",
+    "不可旋轉4秒 36%",
+    "導致對方攻擊遲鈍7秒 36%"
+];
+const weaponSpecialSkillOneOptions = ["攻擊傷害增加 54%", "減少攻擊時間 27%"];
+const bootsSpecialSkillOneOptions = ["增加加速度 45%", "增加最大速度 45%"];
+const armorSpecialSkillOneOptions = [
+    "攻擊延遲減少",
+    "攻擊傷害減少",
+    "震動率增加",
+    "攻擊傷害減少 27%",
+    "攻擊延遲減少 27%",
+    "震動率減少 27%"
+];
+const armorSpecialSkillTwoOptions = ["導致對方攻擊遲鈍 6秒 36%"];
+const pendantSpecialSkillOneOptions = ["增加HP恢復 27%", "增加MP恢復 27%", "增加BP恢復 27%"];
+const armorSpecialSkillOptions = [
+    "加速魔鞋 6秒 36%",
+    "保護膜 1.5秒 36%",
+    "隱身斗篷 3秒 36%",
+    "指南針 10秒 36%",
+    "惡魔之眼 8秒 36%"
+];
+const unavailableArtwork = new Set(["2:fire:wand"]);
+const cardSkillSelections = new Map();
+let guestbookAdminToken = "";
 const characters = [
     ["Xyrho", "火"], ["Shamoo", "火"], ["Sven", "水"], ["Cream", "水"],
     ["Roland", "土"], ["Aurelli", "風"], ["Hawk", "風"], ["Hazel", "土"],
@@ -33,6 +73,7 @@ const characters = [
 const compareSlots = { magic: null, weapon: null, armor: null };
 const searchInput = document.querySelector("#search-input");
 const elementFilter = document.querySelector("#filter-element");
+const categoryFilter = document.querySelector("#filter-category");
 const equipmentLevel = document.querySelector("#equipment-level");
 const skillOneFilter = document.querySelector("#filter-skill-one");
 const skillTwoFilter = document.querySelector("#filter-skill-two");
@@ -59,6 +100,8 @@ const editorStatus = document.querySelector(".editor-status");
 let selectedCharacterId = 1;
 let editMode = false;
 let cards = [];
+let guestbookEntries = [];
+let abilitySort = { key: "", direction: "asc" };
 
 document.querySelector("#reset-filters").addEventListener("click", resetFilters);
 compareToggle.addEventListener("click", toggleComparePanel);
@@ -73,16 +116,27 @@ themeToggle.addEventListener("click", () => {
 const sponsorDialog = document.querySelector("#sponsor-dialog");
 document.querySelector("#open-sponsor").addEventListener("click", () => sponsorDialog.showModal());
 document.querySelector("#close-sponsor").addEventListener("click", () => sponsorDialog.close());
+const feedbackDialog = document.querySelector("#feedback-dialog");
+document.querySelector("#open-feedback").addEventListener("click", () => {
+    feedbackDialog.showModal();
+    loadFeedbackBoard();
+});
+document.querySelector("#guestbook-form").addEventListener("submit", submitGuestbookEntry);
+document.querySelector("#feedback-board").addEventListener("submit", submitGuestbookReply);
+document.querySelector("#feedback-board").addEventListener("click", handleGuestbookDelete);
+document.querySelector("#close-feedback").addEventListener("click", () => feedbackDialog.close());
+feedbackDialog.addEventListener("click", (event) => {
+    if (event.target === feedbackDialog) feedbackDialog.close();
+});
 const visitCounter = document.querySelector("#visit-counter");
 visitCounter.addEventListener("error", () => {
     visitCounter.hidden = true;
     document.querySelector("#visit-counter-fallback").hidden = false;
 }, { once: true });
-const visitCounterUrl = new URL(visitCounter.dataset.src);
-visitCounterUrl.searchParams.set("_", Date.now().toString());
-visitCounter.src = visitCounterUrl.href;
+loadDailyVisitCounter();
 searchInput.addEventListener("input", renderCards);
 elementFilter.addEventListener("change", renderCards);
+categoryFilter.addEventListener("change", renderCards);
 skillOneFilter.addEventListener("change", renderCards);
 skillTwoFilter.addEventListener("change", renderCards);
 equipmentLevel.addEventListener("change", () => {
@@ -90,23 +144,15 @@ equipmentLevel.addEventListener("change", () => {
     renderCards();
 });
 document.querySelector("#admin-entry").addEventListener("click", () => {
+    if (guestbookAdminToken) {
+        logoutAdminSession();
+        return;
+    }
     adminDialog.showModal();
     adminPasswordInput.focus();
 });
 document.querySelector("#close-admin-dialog").addEventListener("click", () => adminDialog.close());
-document.querySelector("#admin-form").addEventListener("submit", (event) => {
-    event.preventDefault();
-    if (adminPasswordInput.value !== "306478") {
-        adminPasswordInput.setCustomValidity("密碼不正確");
-        adminPasswordInput.reportValidity();
-        adminPasswordInput.setCustomValidity("");
-        adminPasswordInput.select();
-        return;
-    }
-    adminDialog.close();
-    adminPasswordInput.value = "";
-    enterEditMode();
-});
+document.querySelector("#admin-form").addEventListener("submit", loginAdmin);
 document.querySelector("#save-all-edits").addEventListener("click", saveAllCardEdits);
 document.querySelector("#export-card-data").addEventListener("click", exportCardData);
 document.querySelector("#import-card-data").addEventListener("click", () => importCardFile.click());
@@ -162,27 +208,38 @@ async function loadCatalog() {
 function renderCards() {
     const query = searchInput.value.trim().toLocaleLowerCase("zh-TW");
     const selectedElement = elementFilter.value;
+    const selectedCategory = categoryFilter.value;
     const selectedSkillOne = skillOneFilter.value;
     const selectedSkillTwo = skillTwoFilter.value;
     const selectedEffects = [...effectFilterOptions.querySelectorAll("input:checked")]
         .map((input) => ({ key: input.dataset.statKey, direction: input.dataset.statDirection }));
     const filtered = cards.filter((card) => {
-        const searchable = [card.id, card.name_zh, card.name_en, card.element]
+        const searchable = [card.name_zh, card.name_en, card.element]
             .filter(Boolean)
             .join(" ")
             .toLocaleLowerCase("zh-TW");
 
         return (!query || searchable.includes(query))
             && (!selectedElement || card.element === selectedElement)
+            && (!selectedCategory || card.art_subtype === selectedCategory)
             && (!selectedSkillOne || getSpecialSkillLabels(card)[0] === selectedSkillOne)
             && (!selectedSkillTwo || getSpecialSkillLabels(card)[1] === selectedSkillTwo)
-            && (equipmentLevel.value !== "9" || selectedEffects.every(({ key, direction }) => {
+            && selectedEffects.every(({ key, direction }) => {
                 const value = card.stats?.[key];
-                return typeof value === "number" && (direction === "increase" ? value > 0 : value < 0);
-            }));
+                const scaledValue = typeof value === "number" ? scaleStatToLevel(value, equipmentLevel.value) : undefined;
+                return typeof scaledValue === "number" && (direction === "increase" ? scaledValue > 0 : scaledValue < 0);
+            });
     });
 
-    filtered.sort((first, second) => Number(first.id) - Number(second.id));
+    filtered.sort((first, second) => {
+        if (!abilitySort.key) return Number(first.id) - Number(second.id);
+        const firstValue = first.stats?.[abilitySort.key];
+        const secondValue = second.stats?.[abilitySort.key];
+        if (typeof firstValue !== "number") return typeof secondValue === "number" ? 1 : Number(first.id) - Number(second.id);
+        if (typeof secondValue !== "number") return -1;
+        const difference = scaleStatToLevel(firstValue, equipmentLevel.value) - scaleStatToLevel(secondValue, equipmentLevel.value);
+        return difference === 0 ? Number(first.id) - Number(second.id) : abilitySort.direction === "asc" ? difference : -difference;
+    });
 
     const fragment = document.createDocumentFragment();
     filtered.forEach((card, index) => fragment.append(createCard(card, index)));
@@ -200,17 +257,15 @@ function createCard(card, index) {
 
     const head = document.createElement("div");
     head.className = "card-head";
-    const id = document.createElement("span");
-    id.className = "card-id";
-    id.textContent = `ID / ${card.id}`;
     const level = document.createElement("span");
     level.className = "card-level";
     level.textContent = `LV. ${equipmentLevel.value}`;
-    head.append(id, level);
+    head.append(level);
 
     const art = document.createElement("div");
     art.className = "card-art";
     addArtwork(art, card);
+    makeArtworkInteractive(art, `穿戴${card.name_zh || card.name_en || "裝備"}`, () => wearCard(card));
 
     const nameZh = document.createElement("h3");
     nameZh.className = "card-name-zh";
@@ -244,46 +299,79 @@ function equipmentSlotForCard(card) {
 }
 
 function createEffectList(card, level = equipmentLevel.value, editable = false) {
-    if (String(level) !== "9") return null;
+    const levelNine = String(level) === "9";
+    const levelStats = getStatsForLevel(card, level);
+    const customStats = getCustomStatLines(card);
+    if (!editable && !levelNine && !Object.keys(levelStats).length && !customStats.length) return null;
     const section = document.createElement("section");
     section.className = "card-ability-block";
     const list = document.createElement("ul");
     list.className = "card-effects";
-    if (Array.isArray(card._text_overrides?.stats)) {
-        appendTextLines(list, card._text_overrides.stats);
-    } else {
-        for (const [key, value] of Object.entries(card.stats || {})) list.append(createStatItem(key, value));
-    }
+    for (const [key, value] of Object.entries(levelStats)) list.append(createStatItem(key, value, !editable));
+    appendTextLines(list, customStats);
     section.append(list);
 
-    const divider = document.createElement("hr");
-    divider.className = "card-special-divider";
-    section.append(divider);
+    if (levelNine) {
+        const divider = document.createElement("hr");
+        divider.className = "card-special-divider";
+        section.append(divider);
 
-    const specialEffects = document.createElement("ul");
-    specialEffects.className = "card-special-effects";
-    if (Array.isArray(card._text_overrides?.special)) {
-        appendTextLines(specialEffects, card._text_overrides.special, true);
-    } else {
-        for (const [key, value] of Object.entries(card.special_stats || {})) {
+        const specialEffects = document.createElement("ul");
+        specialEffects.className = "card-special-effects";
+        const parsedSpecial = parseEffectLines(getCardTextLines(card, "special"));
+        for (const [key, value] of Object.entries(parsedSpecial.values)) {
             const item = createStatItem(key, value);
             item.classList.add("card-special-stat");
             specialEffects.append(item);
         }
-        for (const description of card.special_skills || []) appendHighlightedSkill(specialEffects, description);
+        if (editable) appendTextLines(specialEffects, parsedSpecial.custom, true);
+        else {
+            const options = getCardSpecialSkillOptions(card, parsedSpecial.custom);
+            appendSpecialSkillSelectors(specialEffects, card, options.one, options.two);
+        }
+        if (!specialEffects.childElementCount) {
+            const item = document.createElement("li");
+            item.className = "waiting-state";
+            item.textContent = "特殊技能資料待更新";
+            specialEffects.append(item);
+        }
+        section.append(specialEffects);
     }
-    if (!specialEffects.childElementCount) {
-        const item = document.createElement("li");
-        item.className = "waiting-state";
-        item.textContent = "特殊技能資料待更新";
-        specialEffects.append(item);
-    }
-    section.append(specialEffects);
     if (editable) section.append(createCardEditor(card));
     return section;
 }
 
-function createStatItem(key, value) {
+function scaleStatToLevel(value, level) {
+    return Math.round(value * (Number(level) + 3) / 12 * 100) / 100;
+}
+
+function scaleStatToLevelNine(value, level) {
+    return Math.round(value * 12 / (Number(level) + 3) * 100) / 100;
+}
+
+function getStatsForLevel(card, level) {
+    return Object.fromEntries(Object.entries(card.stats || {}).map(([key, value]) => [key, scaleStatToLevel(value, level)]));
+}
+
+function getCustomStatLines(card) {
+    if (!Array.isArray(card._text_overrides?.stats)) return [];
+    return parseEffectLines(card._text_overrides.stats).custom;
+}
+
+function makeArtworkInteractive(art, label, action) {
+    art.setAttribute("role", "button");
+    art.setAttribute("aria-label", label);
+    art.setAttribute("tabindex", "0");
+    art.title = label;
+    art.addEventListener("click", action);
+    art.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        action();
+    });
+}
+
+function createStatItem(key, value, sortable = false) {
     const item = document.createElement("li");
     const [increaseLabel, decreaseLabel] = effectLabels[key];
     const label = document.createElement("span");
@@ -291,9 +379,127 @@ function createStatItem(key, value) {
     label.textContent = value < 0 ? decreaseLabel : increaseLabel;
     const valueText = document.createElement("span");
     valueText.className = "card-effect-value";
-    valueText.textContent = `${Math.abs(value)}%`;
+    valueText.textContent = `${formatPercent(Math.abs(value))}%`;
     item.append(label, valueText);
+    if (sortable) {
+        item.classList.add("stat-sortable");
+        item.setAttribute("role", "button");
+        item.setAttribute("tabindex", "0");
+        item.setAttribute("aria-label", `依${label.textContent}排序`);
+        item.title = `依${label.textContent}排序`;
+        if (abilitySort.key === key) {
+            const indicator = document.createElement("span");
+            indicator.className = "stat-sort-indicator";
+            indicator.textContent = abilitySort.direction === "asc" ? "↑" : "↓";
+            item.classList.add("stat-sorted");
+            label.classList.add("stat-sorted-label");
+            valueText.classList.add("stat-sorted-value");
+            item.append(indicator);
+        }
+        const sort = () => {
+            if (editMode) return;
+            abilitySort = {
+                key,
+                direction: abilitySort.key === key && abilitySort.direction === "asc" ? "desc" : "asc"
+            };
+            renderCards();
+        };
+        item.addEventListener("click", sort);
+        item.addEventListener("keydown", (event) => {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            event.preventDefault();
+            sort();
+        });
+    }
     return item;
+}
+
+function appendSpecialSkillSelectors(list, card, firstSkills, secondSkills) {
+    const options = { one: firstSkills, two: secondSkills };
+    const selection = getCardSkillSelection(card, options);
+    for (const [key, slot] of [["one", "S1"], ["two", "S2"]]) {
+        const item = document.createElement("li");
+        item.className = "card-special-skill-row";
+        const select = document.createElement("select");
+        select.className = "card-special-skill-selector";
+        select.setAttribute("aria-label", `${card.name_zh || card.name_en} 特殊技能 ${slot}`);
+        select.dataset.skillSlot = slot;
+        const emptyOption = document.createElement("option");
+        emptyOption.value = "";
+        emptyOption.textContent = "未設定";
+        select.append(emptyOption);
+        for (const skill of options[key]) {
+            const option = document.createElement("option");
+            option.value = skill;
+            option.textContent = skill;
+            select.append(option);
+        }
+        select.value = selection[key];
+        select.disabled = options[key].length === 0;
+        select.addEventListener("change", () => {
+            selection[key] = select.value;
+            cardSkillSelections.set(String(card.id), selection);
+            const selectedFilters = [skillOneFilter.value, skillTwoFilter.value];
+            renderSpecialSkillFilters();
+            skillOneFilter.value = selectedFilters[0];
+            skillTwoFilter.value = selectedFilters[1];
+            renderCards();
+            renderCompareSlots();
+        });
+        item.append(select);
+        list.append(item);
+    }
+}
+
+function getCardSpecialSkillOptions(card, existingSkills) {
+    if (["axe", "bow", "sword", "wand"].includes(card.art_subtype)) {
+        return {
+            one: weaponSpecialSkillOneOptions,
+            two: [...new Set([
+                ...weaponSpecialSkillOptions.filter((skill) => skill !== "三連射 36%" || ["bow", "wand"].includes(card.art_subtype)),
+                ...existingSkills
+            ])]
+        };
+    }
+    if (card.art_subtype === "boots") {
+        return {
+            one: bootsSpecialSkillOneOptions,
+            two: [...new Set([...armorSpecialSkillOptions, ...existingSkills])]
+        };
+    }
+    if (card.art_subtype === "armor") {
+        return {
+            one: armorSpecialSkillOneOptions,
+            two: [...new Set([...armorSpecialSkillOptions, ...armorSpecialSkillTwoOptions, ...existingSkills])]
+        };
+    }
+    if (card.art_subtype === "pendant") {
+        return {
+            one: pendantSpecialSkillOneOptions,
+            two: [...new Set([...armorSpecialSkillOptions, ...existingSkills])]
+        };
+    }
+    if (card.art_subtype === "shield") return { one: existingSkills, two: armorSpecialSkillOptions };
+    return { one: existingSkills, two: [] };
+}
+
+function getCardSkillSelection(card, options) {
+    const key = String(card.id);
+    const saved = cardSkillSelections.get(key);
+    if (saved && (!saved.one || options.one.includes(saved.one)) && (!saved.two || options.two.includes(saved.two))) return saved;
+    const knownSpecialStats = parseEffectLines(getCardTextLines(card, "special")).values;
+    const matchingSkill = options.one.find((skill) => Object.entries(parseEffectLines([skill]).values)
+        .some(([statKey, value]) => Number(knownSpecialStats[statKey]) === value));
+    const selection = {
+        one: saved && (!saved.one || options.one.includes(saved.one)) ? saved.one : matchingSkill || randomSkill(options.one),
+        two: saved && (!saved.two || options.two.includes(saved.two)) ? saved.two : randomSkill(options.two)
+    };
+    cardSkillSelections.set(key, selection);
+    return selection;
+}
+
+function randomSkill(skills) {
+    return skills.length ? skills[Math.floor(Math.random() * skills.length)] : "";
 }
 
 function appendTextLines(list, lines, highlightDuration = false) {
@@ -338,7 +544,7 @@ function createCardEditor(card) {
     const editor = document.createElement("div");
     editor.className = "card-editor";
     editor.dataset.cardId = card.id;
-    const normalField = createEditorField("一般技能", getCardTextLines(card, "stats"), "stats");
+    const normalField = createEditorField("能力值", getCardTextLines(card, "stats", equipmentLevel.value), "stats");
     const specialLines = getCardTextLines(card, "special");
     const firstSpecial = createEditorField("特殊技能 S1", [specialLines[0] || ""], "special-one");
     const secondSpecial = createEditorField("特殊技能 S2", [specialLines[1] || ""], "special-two");
@@ -347,7 +553,10 @@ function createCardEditor(card) {
     saveButton.type = "button";
     saveButton.textContent = "儲存此卡";
     saveButton.addEventListener("click", () => saveCardEdits(card.id, editor.closest(".catalog-card")));
-    editor.append(normalField, firstSpecial, secondSpecial, saveButton);
+    const formula = document.createElement("p");
+    formula.className = "card-editor-formula";
+    formula.textContent = "能力值公式：LVn = LV9 × (n + 3) ÷ 12。輸入目前等級的數值並儲存後，會自動換算並套用至 LV.1–9。";
+    editor.append(normalField, formula, firstSpecial, secondSpecial, saveButton);
     return editor;
 }
 
@@ -363,11 +572,14 @@ function createEditorField(labelText, lines, group) {
     return label;
 }
 
-function getCardTextLines(card, group) {
-    if (Array.isArray(card._text_overrides?.[group])) return [...card._text_overrides[group]];
+function getCardTextLines(card, group, level = "9") {
     if (group === "stats") {
-        return Object.entries(card.stats || {}).map(([key, value]) => formatStatLine(key, value));
+        return [
+            ...Object.entries(getStatsForLevel(card, level)).map(([key, value]) => formatStatLine(key, value)),
+            ...getCustomStatLines(card)
+        ];
     }
+    if (Array.isArray(card._text_overrides?.[group])) return [...card._text_overrides[group]];
     return [
         ...Object.entries(card.special_stats || {}).map(([key, value]) => formatStatLine(key, value)),
         ...(card.special_skills || [])
@@ -381,6 +593,8 @@ function formatStatLine(key, value) {
 
 function addArtwork(container, card, level = equipmentLevel.value, isBlack = false) {
     container.classList.toggle("gold-card-art", !isBlack);
+    const blackBackgroundCards = new Set(["火:boots", "土:boots", "水:magic"]);
+    container.classList.toggle("black-art-background", String(level) === "3" && blackBackgroundCards.has(`${card.element}:${card.art_subtype}`));
     const filename = artworkFor(card, "l", level);
     if (filename) {
         const image = document.createElement("img");
@@ -395,16 +609,17 @@ function addArtwork(container, card, level = equipmentLevel.value, isBlack = fal
                 return;
             }
             container.replaceChildren(createFallback(card));
-            if (!isBlack) container.append(createGoldNumber());
         }, { once: true });
         container.append(image);
     } else {
-        container.append(createFallback(card));
+        const label = String(level) === "2" && card.element === "火" && card.art_subtype === "wand"
+            ? "缺少 2 級大圖"
+            : "裝備圖片未提供";
+        container.append(createFallback(card, label));
     }
-    if (!isBlack) container.append(createGoldNumber());
 }
 
-function createFallback(card) {
+function createFallback(card, labelText = "裝備圖片未提供") {
     const fallback = document.createElement("div");
     fallback.className = "art-fallback";
     const symbol = document.createElement("span");
@@ -412,31 +627,17 @@ function createFallback(card) {
     symbol.textContent = "✦";
     const label = document.createElement("span");
     label.className = "art-fallback-label";
-    label.textContent = "裝備圖片未提供";
+    label.textContent = labelText;
     fallback.append(symbol, label);
     return fallback;
-}
-
-function createGoldNumber() {
-    const number = document.createElement("span");
-    number.className = "gold-card-number";
-    number.setAttribute("aria-hidden", "true");
-    for (const digit of "365") {
-        const glyph = document.createElement("span");
-        glyph.className = "gold-card-digit";
-        glyph.style.backgroundPosition = `${-Number(digit) * 9}px 0`;
-        glyph.style.backgroundImage = `url("${GOLD_NUMBER_URL.href}")`;
-        number.append(glyph);
-    }
-    return number;
 }
 
 function artworkFor(card, size, level = equipmentLevel.value) {
     const element = elementArtwork.find(([label]) => (card.element || "").includes(label));
     if (!element || !card.art_subtype) return "";
     const key = `${level}:${element[1]}:${card.art_subtype}`;
-    const imageSize = size === "l" && smallArtworkOnly.has(key) ? "s" : size;
-    return `images_global_card_card_image_gold_black_level${level}_${imageSize}_${element[1]}_${card.art_subtype}.png`;
+    if (unavailableArtwork.has(key)) return "";
+    return `images_global_card_card_image_gold_black_level${level}_${size}_${element[1]}_${card.art_subtype}.png`;
 }
 
 function getTone(card) {
@@ -451,13 +652,222 @@ function getTone(card) {
 function resetFilters() {
     searchInput.value = "";
     elementFilter.value = "";
+    categoryFilter.value = "";
     equipmentLevel.value = "9";
     skillOneFilter.value = "";
     skillTwoFilter.value = "";
+    abilitySort = { key: "", direction: "asc" };
     effectFilterOptions.querySelectorAll("input").forEach((input) => { input.checked = false; });
     updateEffectFilterState();
     renderCards();
     searchInput.focus();
+}
+
+function loadDailyVisitCounter() {
+    const fallback = document.querySelector("#visit-counter-fallback");
+    const today = new Date();
+    const dateKey = [today.getFullYear(), String(today.getMonth() + 1).padStart(2, "0"), String(today.getDate()).padStart(2, "0")].join("-");
+    try {
+        if (localStorage.getItem("sp-card-catalog-visit-date") === dateKey) {
+            visitCounter.hidden = true;
+            fallback.textContent = "今日已計入";
+            fallback.hidden = false;
+            return;
+        }
+        localStorage.setItem("sp-card-catalog-visit-date", dateKey);
+    } catch {
+        visitCounter.hidden = true;
+        fallback.textContent = "--";
+        fallback.hidden = false;
+        return;
+    }
+    const url = new URL(visitCounter.dataset.src);
+    url.searchParams.set("view", "today-total");
+    visitCounter.src = url.href;
+}
+
+function loadFeedbackBoard() {
+    const board = document.querySelector("#feedback-board");
+    const formControls = document.querySelectorAll("#guestbook-form input, #guestbook-form textarea, #guestbook-form button");
+    if (!GUESTBOOK_API_URL) {
+        document.querySelector("#guestbook-status").textContent = "留言服務尚未設定，暫時無法讀取或送出留言。";
+        formControls.forEach((control) => { control.disabled = true; });
+        renderGuestbookEntries([], board);
+        return;
+    }
+    formControls.forEach((control) => { control.disabled = false; });
+    document.querySelector("#guestbook-status").textContent = "正在載入留言...";
+    loadGuestbookEntries(board);
+}
+
+async function submitGuestbookEntry(event) {
+    event.preventDefault();
+    const nameInput = document.querySelector("#guestbook-name");
+    const messageInput = document.querySelector("#guestbook-message");
+    const status = document.querySelector("#guestbook-status");
+    const submit = event.currentTarget.querySelector('button[type="submit"]');
+    submit.disabled = true;
+    try {
+        await requestGuestbookApi("/api/entries", {
+            method: "POST",
+            body: JSON.stringify({ name: nameInput.value.trim(), message: messageInput.value.trim() })
+        });
+        nameInput.value = "";
+        messageInput.value = "";
+        status.textContent = "留言已送出。";
+        await loadGuestbookEntries(document.querySelector("#feedback-board"));
+    } catch (error) {
+        status.textContent = error.message;
+    } finally {
+        submit.disabled = false;
+    }
+}
+
+async function loginAdmin(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const status = document.querySelector("#admin-login-status");
+    const submit = form.querySelector('button[type="submit"]');
+    submit.disabled = true;
+    try {
+        if (!GUESTBOOK_API_URL) throw new Error("管理登入服務尚未設定。");
+        const result = await requestGuestbookApi("/api/admin/login", {
+            method: "POST",
+            body: JSON.stringify({ password: adminPasswordInput.value })
+        }, false);
+        if (!result.token) throw new Error("管理登入服務未回傳有效工作階段。");
+        guestbookAdminToken = result.token;
+        adminPasswordInput.value = "";
+        status.textContent = "";
+        adminDialog.close();
+        document.querySelector("#admin-entry").textContent = "管理者登出";
+        enterEditMode();
+        if (feedbackDialog.open) await loadGuestbookEntries(document.querySelector("#feedback-board"));
+    } catch (error) {
+        status.textContent = error.message;
+    } finally {
+        submit.disabled = false;
+    }
+}
+
+function logoutAdminSession() {
+    guestbookAdminToken = "";
+    document.querySelector("#admin-entry").textContent = "管理登入";
+    exitEditMode();
+    renderGuestbookEntries(guestbookEntries, document.querySelector("#feedback-board"));
+}
+
+async function submitGuestbookReply(event) {
+    const form = event.target.closest(".guestbook-reply-form");
+    if (!form) return;
+    event.preventDefault();
+    const id = form.dataset.entryId;
+    const reply = form.querySelector("textarea").value.trim();
+    try {
+        await requestGuestbookApi(`/api/admin/entries/${id}/reply`, {
+            method: "PATCH",
+            body: JSON.stringify({ reply })
+        });
+        document.querySelector("#guestbook-status").textContent = "回覆已保存。";
+        await loadGuestbookEntries(document.querySelector("#feedback-board"));
+    } catch (error) {
+        document.querySelector("#guestbook-status").textContent = error.message;
+    }
+}
+
+async function handleGuestbookDelete(event) {
+    const button = event.target.closest("[data-delete-entry]");
+    if (!button || !window.confirm("確定刪除此留言？")) return;
+    try {
+        await requestGuestbookApi(`/api/admin/entries/${button.dataset.deleteEntry}`, { method: "DELETE" });
+        document.querySelector("#guestbook-status").textContent = "留言已刪除。";
+        await loadGuestbookEntries(document.querySelector("#feedback-board"));
+    } catch (error) {
+        document.querySelector("#guestbook-status").textContent = error.message;
+    }
+}
+
+async function loadGuestbookEntries(board) {
+    try {
+        const result = await requestGuestbookApi("/api/entries", {}, false);
+        guestbookEntries = Array.isArray(result.entries) ? result.entries : [];
+        renderGuestbookEntries(guestbookEntries, board);
+        document.querySelector("#guestbook-status").textContent = "";
+    } catch (error) {
+        document.querySelector("#guestbook-status").textContent = error.message;
+    }
+}
+
+async function requestGuestbookApi(path, options = {}, authorized = true) {
+    const headers = new Headers(options.headers || {});
+    if (options.body) headers.set("Content-Type", "application/json");
+    if (authorized && guestbookAdminToken) headers.set("Authorization", `Bearer ${guestbookAdminToken}`);
+    const response = await fetch(`${GUESTBOOK_API_URL}${path}`, { ...options, headers, cache: "no-store" });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || `留言服務回應錯誤（${response.status}）。`);
+    return result;
+}
+
+function renderGuestbookEntries(entries, board) {
+    if (!board) return;
+    if (!entries.length) {
+        const empty = document.createElement("p");
+        empty.className = "guestbook-empty";
+        empty.textContent = "目前沒有留言。";
+        board.replaceChildren(empty);
+        return;
+    }
+    const fragment = document.createDocumentFragment();
+    for (const entry of entries) {
+        const item = document.createElement("article");
+        item.className = "guestbook-entry";
+        const header = document.createElement("div");
+        header.className = "guestbook-entry-header";
+        const name = document.createElement("strong");
+        name.textContent = entry.name;
+        const date = document.createElement("time");
+        const createdAt = new Date(entry.created_at);
+        date.dateTime = Number.isNaN(createdAt.getTime()) ? "" : createdAt.toISOString();
+        date.textContent = Number.isNaN(createdAt.getTime())
+            ? ""
+            : createdAt.toLocaleString("zh-TW", { dateStyle: "medium", timeStyle: "short" });
+        const message = document.createElement("p");
+        message.textContent = entry.message;
+        header.append(name, date);
+        item.append(header, message);
+        if (entry.reply) {
+            const reply = document.createElement("div");
+            reply.className = "guestbook-reply";
+            const replyLabel = document.createElement("strong");
+            replyLabel.textContent = "管理員回覆";
+            const replyText = document.createElement("p");
+            replyText.textContent = entry.reply;
+            reply.append(replyLabel, replyText);
+            item.append(reply);
+        }
+        if (guestbookAdminToken) {
+            const replyForm = document.createElement("form");
+            replyForm.className = "guestbook-reply-form";
+            replyForm.dataset.entryId = entry.id;
+            const replyInput = document.createElement("textarea");
+            replyInput.maxLength = 500;
+            replyInput.rows = 2;
+            replyInput.placeholder = "管理員回覆";
+            replyInput.value = entry.reply || "";
+            replyInput.required = true;
+            const replyButton = document.createElement("button");
+            replyButton.type = "submit";
+            replyButton.textContent = "保存回覆";
+            const deleteButton = document.createElement("button");
+            deleteButton.type = "button";
+            deleteButton.dataset.deleteEntry = entry.id;
+            deleteButton.textContent = "刪除留言";
+            replyForm.append(replyInput, replyButton, deleteButton);
+            item.append(replyForm);
+        }
+        fragment.append(item);
+    }
+    board.replaceChildren(fragment);
 }
 
 function enterEditMode() {
@@ -505,10 +915,11 @@ function readCardEditor(card, article) {
     };
     const parsedStats = parseEffectLines(linesByGroup.stats);
     const parsedSpecial = parseEffectLines(linesByGroup.special);
-    card.stats = parsedStats.values;
+    card.stats = Object.fromEntries(Object.entries(parsedStats.values)
+        .map(([key, value]) => [key, scaleStatToLevelNine(value, equipmentLevel.value)]));
     card.special_stats = parsedSpecial.values;
     card.special_skills = parsedSpecial.custom;
-    card._text_overrides = linesByGroup;
+    card._text_overrides = { stats: parsedStats.custom, special: linesByGroup.special };
     return true;
 }
 
@@ -522,7 +933,7 @@ function parseEffectLines(lines) {
             key,
             label: text.replace(/\s/g, ""),
             increase: index === 0
-        }))).find((candidate) => candidate.label === label);
+        }))).find((candidate) => candidate.label === label) || effectLabelAliases[label];
         if (!entry || !match) {
             custom.push(line);
             continue;
@@ -652,9 +1063,8 @@ function renderEffectFilters() {
 }
 
 function updateEffectFilterState() {
-    const levelNineSelected = equipmentLevel.value === "9";
-    effectFilters.disabled = !levelNineSelected;
-    effectFilterNote.hidden = levelNineSelected;
+    effectFilters.disabled = false;
+    effectFilterNote.hidden = false;
 }
 
 function renderSpecialSkillFilters() {
@@ -682,7 +1092,11 @@ function renderSpecialSkillFilters() {
 }
 
 function getSpecialSkillLabels(card) {
-    return getCardTextLines(card, "special").slice(0, 2).map((line) => {
+    const skills = parseEffectLines(getCardTextLines(card, "special")).custom;
+    const options = getCardSpecialSkillOptions(card, skills);
+    const selection = getCardSkillSelection(card, options);
+    return [selection.one, selection.two].map((line) => {
+        if (!line) return "";
         const withoutRate = line.replace(/\s*[+-]?\d+(?:\.\d+)?\s*%\s*$/, "").trim();
         return withoutRate
             .replace(/\s*\d+(?:\.\d+)?\s*秒/g, " X秒")
@@ -792,13 +1206,18 @@ function renderCompareSlots() {
         const art = document.createElement("div");
         art.className = "compare-art card-art";
         addArtwork(art, card, selection.level, selection.isBlack);
+        makeArtworkInteractive(art, `卸下${card.name_zh || card.name_en || "裝備"}`, () => {
+            compareSlots[slot] = null;
+            renderCompareSlots();
+            renderCards();
+        });
         const details = document.createElement("div");
         details.className = "compare-card-details";
         const name = document.createElement("strong");
         name.textContent = card.name_zh || card.name_en;
-        const identifier = document.createElement("span");
-        identifier.textContent = `ID / ${card.id} · LV. ${selection.level}`;
-        details.append(name, identifier);
+        const level = document.createElement("span");
+        level.textContent = `LV. ${selection.level}`;
+        details.append(name, level);
         const removeButton = document.createElement("button");
         removeButton.className = "compare-remove";
         removeButton.type = "button";
@@ -806,6 +1225,7 @@ function renderCompareSlots() {
         removeButton.addEventListener("click", () => {
             compareSlots[slot] = null;
             renderCompareSlots();
+            renderCards();
         });
         const heading = document.createElement("div");
         heading.className = "compare-card-heading";
@@ -880,14 +1300,9 @@ function renderCompareTotals() {
             cell.replaceChildren(document.createTextNode("--"));
             continue;
         }
-        if (selection.level !== "9") {
-            cell.textContent = "僅第 9 級提供素質資料";
-            continue;
-        }
-
         const totals = new Map();
-        const baseStats = selection.card.stats && typeof selection.card.stats === "object" ? selection.card.stats : {};
-        const specialStats = selection.card.special_stats && typeof selection.card.special_stats === "object" ? selection.card.special_stats : {};
+        const baseStats = getStatsForLevel(selection.card, selection.level);
+        const specialStats = getSelectedSpecialStats(selection.card, selection.level);
         for (const source of [baseStats, specialStats]) {
             if (!source || typeof source !== "object") continue;
             for (const [key, value] of Object.entries(source)) totals.set(key, (totals.get(key) || 0) + value);
@@ -920,6 +1335,18 @@ function renderCompareTotals() {
         }
         cell.replaceChildren(fragment.childElementCount ? fragment : document.createTextNode("--"));
     }
+}
+
+function getSelectedSpecialStats(card, level) {
+    if (String(level) !== "9") return {};
+    const parsedSpecial = parseEffectLines(getCardTextLines(card, "special"));
+    const options = getCardSpecialSkillOptions(card, parsedSpecial.custom);
+    const selectedSkill = getCardSkillSelection(card, options).one;
+    const specialStats = { ...parsedSpecial.values };
+    const s1StatKeys = new Set(options.one.flatMap((skill) => Object.keys(parseEffectLines([skill]).values)));
+    for (const key of s1StatKeys) specialStats[key] = undefined;
+    Object.assign(specialStats, parseEffectLines([selectedSkill]).values);
+    return Object.fromEntries(Object.entries(specialStats).filter(([, value]) => typeof value === "number"));
 }
 
 function isTextEntry(element) {

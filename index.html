@@ -9,8 +9,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./styles.css?v=8">
-    <script type="module" src="./app.js?v=12"></script>
+    <link rel="stylesheet" href="./styles.css?v=14">
+    <script src="./guestbook-config.js?v=1"></script>
+    <script type="module" src="./app.js?v=18"></script>
 </head>
 <body>
     <header class="site-header">
@@ -39,6 +40,7 @@
             <div class="intro-index" aria-hidden="true">SP<br><span>001</span></div>
             <div class="intro-actions">
                 <button id="toggle-compare" class="compare-toggle" type="button" aria-controls="compare-panel" aria-expanded="false">裝備試穿</button>
+                <button id="open-feedback" class="feedback-button" type="button" aria-haspopup="dialog" aria-controls="feedback-dialog">留言板</button>
                 <button id="open-sponsor" class="sponsor-button" type="button">無情贊助</button>
             </div>
         </section>
@@ -83,8 +85,7 @@
             </section>
             <section class="compare-summary" aria-labelledby="compare-summary-heading">
                 <div class="compare-summary-heading">
-                    <span class="summary-mark" aria-hidden="true">Σ</span>
-                    <h3 id="compare-summary-heading">素質總和</h3>
+                    <h3 id="compare-summary-heading">總能力值</h3>
                 </div>
                 <div id="compare-total-list" class="compare-total-list" aria-live="polite">
                     <div class="compare-total-cell" data-slot="magic"><span class="compare-summary-empty">--</span></div>
@@ -104,7 +105,7 @@
                     <label for="search-input">快速搜尋</label>
                     <div class="search-control">
                         <span class="search-mark" aria-hidden="true"></span>
-                        <input id="search-input" type="search" placeholder="名稱、描述或卡片 ID" autocomplete="off">
+                        <input id="search-input" type="search" placeholder="裝備名稱或屬性" autocomplete="off">
                         <kbd>/</kbd>
                     </div>
                 </div>
@@ -118,9 +119,24 @@
                         <option value="" selected>全部</option>
                     </select>
                 </div>
+                <div class="filter-field">
+                    <label for="filter-category">類別</label>
+                    <select id="filter-category">
+                        <option value="" selected>全部</option>
+                        <option value="magic">魔法</option>
+                        <option value="axe">斧</option>
+                        <option value="sword">劍</option>
+                        <option value="wand">杖</option>
+                        <option value="bow">弓</option>
+                        <option value="shield">盾</option>
+                        <option value="pendant">垂</option>
+                        <option value="armor">甲</option>
+                        <option value="boots">靴</option>
+                    </select>
+                </div>
                 <fieldset id="effect-filters" class="effect-filter-fieldset">
                     <legend>能力條件</legend>
-                    <p id="effect-filter-note" class="effect-filter-note" hidden>能力數值僅適用第 9 級。</p>
+                    <p id="effect-filter-note" class="effect-filter-note" hidden>能力條件會依所選等級換算。</p>
                     <div id="effect-filter-options" class="effect-filter-options"></div>
                 </fieldset>
                 <button class="reset-button" id="reset-filters" type="button"><span aria-hidden="true">↺</span> 重設篩選</button>
@@ -182,11 +198,11 @@
 
     <footer class="site-footer">
         <span>SURVIVAL PROJECT / CARD ARCHIVE</span>
-        <span class="footer-visits" aria-label="網站累計造訪次數">
-            <img id="visit-counter" data-src="https://hits.sh/lucienwooo.github.io/Survival-Project-Data.svg?style=flat-square&amp;label=%E9%80%A0%E8%A8%AA&amp;color=transparent&amp;labelColor=transparent" alt="網站累計造訪次數">
+        <span class="footer-visits" aria-label="本日造訪次數，每個瀏覽器每日計入一次">
+            <img id="visit-counter" data-src="https://hits.sh/lucienwooo.github.io/Survival-Project-Data.svg?style=flat-square&amp;label=%E4%BB%8A%E6%97%A5&amp;color=transparent&amp;labelColor=transparent" alt="本日造訪次數">
             <span id="visit-counter-fallback" class="footer-visits-fallback" hidden>--</span>
         </span>
-        <span class="footer-access">靜態圖鑑 · <button id="admin-entry" class="admin-entry" type="button" aria-haspopup="dialog" aria-controls="admin-dialog">無需登入</button></span>
+        <span class="footer-access">靜態圖鑑 · <button id="admin-entry" class="admin-entry" type="button" aria-haspopup="dialog" aria-controls="admin-dialog">管理登入</button></span>
     </footer>
 
     <dialog id="sponsor-dialog" class="sponsor-dialog" aria-labelledby="sponsor-title">
@@ -211,6 +227,26 @@
             <p class="sponsor-signature">By Lucienwooo</p>
         </div>
     </dialog>
+    <dialog id="feedback-dialog" class="feedback-dialog" aria-labelledby="feedback-dialog-title">
+        <div class="dialog-topline">
+            <span id="feedback-dialog-title">留言板</span>
+            <button class="dialog-close" id="close-feedback" type="button" aria-label="關閉留言板">×</button>
+        </div>
+        <div class="feedback-dialog-body">
+            <form id="guestbook-form" class="guestbook-form">
+                <label for="guestbook-name">顯示名稱</label>
+                <input id="guestbook-name" name="name" maxlength="32" autocomplete="nickname" required>
+                <label for="guestbook-message">留言內容</label>
+                <textarea id="guestbook-message" name="message" maxlength="500" rows="4" required></textarea>
+                <div class="guestbook-form-footer">
+                    <p>留言免登入；管理者登入後才能回覆或刪除。</p>
+                    <button type="submit">送出留言</button>
+                </div>
+            </form>
+            <p id="guestbook-status" class="guestbook-status" role="status" aria-live="polite"></p>
+            <div id="feedback-board" data-loaded="false"></div>
+        </div>
+    </dialog>
     <dialog id="admin-dialog" class="admin-dialog" aria-labelledby="admin-dialog-title">
         <form id="admin-form" class="admin-form">
             <div class="dialog-topline">
@@ -219,6 +255,7 @@
             </div>
             <label for="admin-password">輸入管理密碼</label>
             <input id="admin-password" type="password" autocomplete="current-password" required>
+            <p id="admin-login-status" class="admin-login-status" role="status" aria-live="polite"></p>
             <button class="admin-unlock-button" type="submit">解鎖編輯</button>
         </form>
     </dialog>
