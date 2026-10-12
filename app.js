@@ -1,4 +1,4 @@
-const DATA_URL = new URL("./data/cards.json?v=13", import.meta.url);
+const DATA_URL = new URL("./data/cards.json?v=14", import.meta.url);
 const ART_BASE_URL = new URL("./images/global_card_images/", import.meta.url);
 const CHARACTER_ART_URL = new URL("./images/characters/", import.meta.url);
 const elementArtwork = [
@@ -58,12 +58,12 @@ const armorSpecialSkillOneOptions = [
 const armorSpecialSkillTwoOptions = ["導致對方攻擊遲鈍 6秒 36%"];
 const pendantSpecialSkillOneOptions = ["增加HP恢復 27%", "增加MP恢復 27%", "增加BP恢復 27%"];
 const armorSpecialSkillOptions = [
-    "加速魔鞋 6秒 36%",
     "保護膜 1.5秒 36%",
     "隱身斗篷 3秒 36%",
     "指南針 10秒 36%",
     "惡魔之眼 8秒 36%"
 ];
+const bootsSpecialSkillTwoOptions = ["加速魔鞋 6秒 36%", ...armorSpecialSkillOptions];
 const unavailableArtwork = new Set(["2:fire:wand"]);
 const cardSkillSelections = new Map();
 const characters = [
@@ -457,31 +457,32 @@ function appendSpecialSkillSelectors(list, card, firstSkills, secondSkills) {
 }
 
 function getCardSpecialSkillOptions(card, existingSkills) {
+    const nonBootsSkills = existingSkills.filter((skill) => !skill.includes("加速魔鞋"));
     if (["axe", "bow", "sword", "wand"].includes(card.art_subtype)) {
         return {
             one: weaponSpecialSkillOneOptions,
             two: [...new Set([
                 ...weaponSpecialSkillOptions.filter((skill) => skill !== "三連射 36%" || ["bow", "wand"].includes(card.art_subtype)),
-                ...existingSkills
+                ...nonBootsSkills
             ])]
         };
     }
     if (card.art_subtype === "boots") {
         return {
             one: bootsSpecialSkillOneOptions,
-            two: [...new Set([...armorSpecialSkillOptions, ...existingSkills])]
+            two: [...new Set([...bootsSpecialSkillTwoOptions, ...existingSkills])]
         };
     }
     if (card.art_subtype === "armor") {
         return {
             one: armorSpecialSkillOneOptions,
-            two: [...new Set([...armorSpecialSkillOptions, ...armorSpecialSkillTwoOptions, ...existingSkills])]
+            two: [...new Set([...armorSpecialSkillOptions, ...armorSpecialSkillTwoOptions, ...nonBootsSkills])]
         };
     }
     if (card.art_subtype === "pendant") {
         return {
             one: pendantSpecialSkillOneOptions,
-            two: [...new Set([...armorSpecialSkillOptions, ...existingSkills])]
+            two: [...new Set([...armorSpecialSkillOptions, ...nonBootsSkills])]
         };
     }
     if (card.art_subtype === "shield") return { one: existingSkills, two: armorSpecialSkillOptions };
