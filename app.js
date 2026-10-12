@@ -126,7 +126,9 @@ document.querySelector("#close-sponsor").addEventListener("click", () => sponsor
 const visitCounter = document.querySelector("#visit-counter");
 visitCounter.addEventListener("error", () => {
     visitCounter.hidden = true;
-    document.querySelector("#visit-counter-fallback").hidden = false;
+    const fallback = document.querySelector("#visit-counter-fallback");
+    fallback.textContent = "今日計數暫不可用";
+    fallback.hidden = false;
 }, { once: true });
 loadDailyVisitCounter();
 searchInput.addEventListener("input", renderCards);
@@ -676,17 +678,23 @@ function loadDailyVisitCounter() {
     try {
         if (localStorage.getItem("sp-card-catalog-visit-date") === dateKey) {
             visitCounter.hidden = true;
-            fallback.textContent = "今日已計入";
+            fallback.textContent = "今日已計入 1 次";
             fallback.hidden = false;
             return;
         }
-        localStorage.setItem("sp-card-catalog-visit-date", dateKey);
     } catch {
         visitCounter.hidden = true;
         fallback.textContent = "--";
         fallback.hidden = false;
         return;
     }
+    visitCounter.addEventListener("load", () => {
+        try {
+            localStorage.setItem("sp-card-catalog-visit-date", dateKey);
+        } catch {
+            return;
+        }
+    }, { once: true });
     const url = new URL(visitCounter.dataset.src);
     url.searchParams.set("view", "today-total");
     visitCounter.src = url.href;
