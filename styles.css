@@ -144,7 +144,7 @@ button, select { color: inherit; }
 }
 .intro-index span { color: rgba(212, 95, 73, 0.14); font-size: 67px; }
 .intro-actions { position: absolute; top: 26px; right: 0; z-index: 2; display: flex; gap: 8px; }
-.feedback-button { min-width: 92px; min-height: 46px; padding: 0 16px; color: var(--ink); background: var(--surface); border: 1px solid var(--coral); cursor: pointer; font-size: 14px; font-weight: 700; transition: color 160ms ease, background-color 160ms ease; }
+.feedback-button { min-width: 92px; min-height: 46px; padding: 0 16px; display: inline-flex; align-items: center; justify-content: center; color: var(--ink); background: var(--surface); border: 1px solid var(--coral); cursor: pointer; font-size: 14px; font-weight: 700; text-decoration: none; transition: color 160ms ease, background-color 160ms ease; }
 .feedback-button:hover { color: var(--deep); background: var(--coral); }
 .compare-toggle { min-width: 92px; min-height: 46px; padding: 0 16px; color: var(--ink); background: var(--surface); border: 1px solid #64736a; cursor: pointer; font-size: 14px; font-weight: 700; transition: background-color 160ms ease, border-color 160ms ease; }
 .compare-toggle:hover, .compare-toggle[aria-expanded="true"] { background: var(--surface-raised); border-color: var(--acid); }
@@ -365,6 +365,11 @@ button, select { color: inherit; }
 .empty-symbol { color: var(--coral); font-size: 32px; }
 .empty-state h3 { margin: 7px 0 0; color: var(--ink); font-size: 15px; }
 .empty-state p { margin: 6px 0 0; font-size: 12px; }
+.player-comments { min-width: 0; margin: 28px 0 40px; padding: 20px 0 24px; border-top: 1px solid var(--line); }
+.player-comments-heading { margin-bottom: 14px; }
+.player-comments-heading h2 { margin: 0; color: var(--ink); font-size: 18px; }
+.player-comments-heading p { margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.giscus-comments, .giscus { width: 100%; max-width: 100%; min-width: 0; }
 .site-footer { min-height: 53px; padding: 0 5.4vw; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px; color: var(--ink-soft); background: var(--deep); font-size: 10px; }
 .site-footer > span:first-child { justify-self: start; font-family: "Barlow Condensed", sans-serif; letter-spacing: 1px; }
 .footer-visits { display: inline-flex; align-items: center; justify-self: center; min-height: 20px; }
@@ -379,33 +384,9 @@ html[data-theme="light"] .footer-visits img { filter: invert(1); }
 .dialog-topline { min-height: 48px; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; color: var(--ink); background: var(--deep); font-family: "Barlow Condensed", sans-serif; font-size: 12px; letter-spacing: 1px; }
 .dialog-close { width: 31px; height: 31px; display: grid; place-items: center; color: var(--ink); background: transparent; border: 1px solid var(--line); cursor: pointer; font-size: 23px; line-height: 1; }
 .sponsor-dialog { width: min(480px, calc(100vw - 32px)); max-width: 480px; max-height: min(86vh, 760px); overflow-y: auto; padding: 0; color: var(--ink); background: var(--surface); border: 1px solid #46544a; box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55); }
-.feedback-dialog { width: min(860px, calc(100vw - 32px)); max-width: 860px; max-height: min(88vh, 900px); overflow-y: auto; padding: 0; color: var(--ink); background: var(--surface); border: 1px solid #46544a; box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55); }
 .sponsor-dialog[open] { animation: sponsor-pop 240ms cubic-bezier(0.2, 0.75, 0.25, 1) both; }
-.feedback-dialog[open] { animation: sponsor-pop 240ms cubic-bezier(0.2, 0.75, 0.25, 1) both; }
 .sponsor-dialog::backdrop { background: rgba(17, 26, 21, 0.73); backdrop-filter: blur(4px); animation: sponsor-backdrop 240ms ease both; }
-.feedback-dialog::backdrop { background: rgba(17, 26, 21, 0.73); backdrop-filter: blur(4px); animation: sponsor-backdrop 240ms ease both; }
 .sponsor-dialog-body { padding: 4px 20px 20px; }
-.feedback-dialog-body { padding: 12px 20px 20px; }
-.guestbook-form { display: grid; gap: 6px; }
-.guestbook-form > label { color: var(--ink-soft); font-size: 11px; }
-.guestbook-form input, .guestbook-form textarea { width: 100%; min-width: 0; padding: 8px 10px; color: var(--ink); background: var(--deep); border: 1px solid var(--line); font-size: 12px; }
-.guestbook-form textarea { min-height: 88px; resize: vertical; line-height: 1.6; }
-.guestbook-form-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
-.guestbook-form-footer p, .guestbook-status, .guestbook-empty { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.6; }
-.guestbook-form-footer button { min-height: 34px; padding: 5px 12px; color: var(--deep); background: var(--acid); border: 1px solid var(--acid); cursor: pointer; font-size: 11px; font-weight: 700; }
-.guestbook-reply-form button { min-height: 32px; padding: 4px 10px; color: var(--ink); background: var(--surface-raised); border: 1px solid var(--line); cursor: pointer; font-size: 10px; }
-.guestbook-status:not(:empty) { color: var(--aurora-green); }
-#feedback-board { max-height: 42vh; margin-top: 14px; overflow-y: auto; border-top: 1px solid var(--line); }
-.guestbook-entry { padding: 11px 0; border-bottom: 1px solid var(--line); }
-.guestbook-entry-header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-.guestbook-entry-header strong { min-width: 0; overflow-wrap: anywhere; color: var(--ink); font-size: 12px; }
-.guestbook-entry-header time { flex: 0 0 auto; color: var(--muted); font-size: 10px; }
-.guestbook-entry > p { margin: 6px 0 0; color: var(--ink-soft); font-size: 12px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
-.guestbook-reply { margin-top: 9px; padding-left: 9px; border-left: 2px solid var(--aurora-green); }
-.guestbook-reply strong { color: var(--aurora-green); font-size: 10px; }
-.guestbook-reply p { margin: 4px 0 0; color: var(--ink-soft); font-size: 11px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
-.guestbook-reply-form { margin-top: 9px; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px; }
-.guestbook-reply-form textarea { grid-column: 1 / -1; min-width: 0; padding: 6px 8px; color: var(--ink); background: var(--deep); border: 1px solid var(--line); font: inherit; font-size: 11px; resize: vertical; }
 .sponsor-section { padding-top: 15px; border-top: 1px solid var(--line); }
 .sponsor-section h2, .sponsor-section h3 { margin: 0 0 8px; color: var(--acid); font-size: 13px; }
 .sponsor-section p { margin: 0; color: var(--ink-soft); font-size: 12px; line-height: 1.7; }

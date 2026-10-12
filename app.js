@@ -7,8 +7,6 @@ const elementArtwork = [
     ["土", "earth"],
     ["風", "wind"]
 ];
-const GUESTBOOK_API_URL = window.SURVIVAL_GUESTBOOK_API?.trim().replace(/\/+$/, "") || "";
-
 const effectLabels = {
     max_speed: ["增加最大速度", "減少最大速度"],
     attack_speed: ["增加攻擊速度", "減少攻擊速度"],
@@ -64,7 +62,6 @@ const armorSpecialSkillOptions = [
 ];
 const unavailableArtwork = new Set(["2:fire:wand"]);
 const cardSkillSelections = new Map();
-let guestbookAdminToken = "";
 const characters = [
     ["Xyrho", "火"], ["Shamoo", "火"], ["Sven", "水"], ["Cream", "水"],
     ["Roland", "土"], ["Aurelli", "風"], ["Hawk", "風"], ["Hazel", "土"],
@@ -94,13 +91,14 @@ const characterPickerMenu = document.querySelector("#character-picker-menu");
 const editorToolbar = document.querySelector("#editor-toolbar");
 const adminDialog = document.querySelector("#admin-dialog");
 const adminPasswordInput = document.querySelector("#admin-password");
+const giscusComments = document.querySelector("#giscus-comments");
 const themeToggle = document.querySelector("#theme-toggle");
 const importCardFile = document.querySelector("#import-card-file");
 const editorStatus = document.querySelector(".editor-status");
+let giscusLoaded = false;
 let selectedCharacterId = 1;
 let editMode = false;
 let cards = [];
-let guestbookEntries = [];
 let abilitySort = { key: "", direction: "asc" };
 
 document.querySelector("#reset-filters").addEventListener("click", resetFilters);
@@ -116,18 +114,6 @@ themeToggle.addEventListener("click", () => {
 const sponsorDialog = document.querySelector("#sponsor-dialog");
 document.querySelector("#open-sponsor").addEventListener("click", () => sponsorDialog.showModal());
 document.querySelector("#close-sponsor").addEventListener("click", () => sponsorDialog.close());
-const feedbackDialog = document.querySelector("#feedback-dialog");
-document.querySelector("#open-feedback").addEventListener("click", () => {
-    feedbackDialog.showModal();
-    loadFeedbackBoard();
-});
-document.querySelector("#guestbook-form").addEventListener("submit", submitGuestbookEntry);
-document.querySelector("#feedback-board").addEventListener("submit", submitGuestbookReply);
-document.querySelector("#feedback-board").addEventListener("click", handleGuestbookDelete);
-document.querySelector("#close-feedback").addEventListener("click", () => feedbackDialog.close());
-feedbackDialog.addEventListener("click", (event) => {
-    if (event.target === feedbackDialog) feedbackDialog.close();
-});
 const visitCounter = document.querySelector("#visit-counter");
 visitCounter.addEventListener("error", () => {
     visitCounter.hidden = true;
@@ -158,6 +144,7 @@ importCardFile.addEventListener("change", () => {
     importCardFile.value = "";
 });
 document.querySelector("#exit-edit-mode").addEventListener("click", exitEditMode);
+document.querySelector("#open-feedback").addEventListener("click", loadGiscus);
 
 renderEffectFilters();
 renderCharacterOptions();
@@ -178,6 +165,7 @@ sponsorDialog.addEventListener("click", (event) => {
 });
 
 loadCatalog();
+initializeGiscus();
 
 async function loadCatalog() {
     try {
@@ -682,41 +670,49 @@ function loadDailyVisitCounter() {
     visitCounter.src = url.href;
 }
 
-function loadFeedbackBoard() {
-    const board = document.querySelector("#feedback-board");
-    const formControls = document.querySelectorAll("#guestbook-form input, #guestbook-form textarea, #guestbook-form button");
-    if (!GUESTBOOK_API_URL) {
-        document.querySelector("#guestbook-status").textContent = "留言服務尚未設定，暫時無法讀取或送出留言。";
-        formControls.forEach((control) => { control.disabled = true; });
-        renderGuestbookEntries([], board);
+function initializeGiscus() {
+    if (!giscusComments) return;
+    window.addEventListener("message", (event) => {
+        if (event.origin !== "https://giscus.app" || !event.data?.giscus?.ready) return;
+        syncGiscusTheme(document.documentElement.dataset.theme === "light" ? "light" : "dark");
+    });
+    if (!("IntersectionObserver" in window)) {
+        loadGiscus();
         return;
     }
-    formControls.forEach((control) => { control.disabled = false; });
-    document.querySelector("#guestbook-status").textContent = "正在載入留言...";
-    loadGuestbookEntries(board);
+    const observer = new IntersectionObserver((entries, currentObserver) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        loadGiscus();
+        currentObserver.disconnect();
+    }, { rootMargin: "600px 0px" });
+    observer.observe(giscusComments);
 }
 
-async function submitGuestbookEntry(event) {
-    event.preventDefault();
-    const nameInput = document.querySelector("#guestbook-name");
-    const messageInput = document.querySelector("#guestbook-message");
-    const status = document.querySelector("#guestbook-status");
-    const submit = event.currentTarget.querySelector('button[type="submit"]');
-    submit.disabled = true;
-    try {
-        await requestGuestbookApi("/api/entries", {
-            method: "POST",
-            body: JSON.stringify({ name: nameInput.value.trim(), message: messageInput.value.trim() })
-        });
-        nameInput.value = "";
-        messageInput.value = "";
-        status.textContent = "留言已送出。";
-        await loadGuestbookEntries(document.querySelector("#feedback-board"));
-    } catch (error) {
-        status.textContent = error.message;
-    } finally {
-        submit.disabled = false;
-    }
+function loadGiscus() {
+    if (giscusLoaded) return;
+    giscusLoaded = true;
+    const script = document.createElement("script");
+    script.src = "https://giscus.app/client.js";
+    script.async = true;
+    script.crossOrigin = "anonymous";
+    script.dataset.repo = "lucienwooo/Survival-Project-Data";
+    script.dataset.repoId = "R_kgDOVFsanQ";
+    script.dataset.category = "玩家留言";
+    script.dataset.categoryId = "DIC_kwDOVFsanc4DIG16";
+    script.dataset.mapping = "pathname";
+    script.dataset.strict = "0";
+    script.dataset.reactionsEnabled = "1";
+    script.dataset.emitMetadata = "0";
+    script.dataset.inputPosition = "bottom";
+    script.dataset.theme = document.documentElement.dataset.theme === "light" ? "light" : "dark";
+    script.dataset.lang = "zh-TW";
+    script.dataset.loading = "lazy";
+    giscusComments.append(script);
+}
+
+function syncGiscusTheme(theme) {
+    const frame = giscusComments?.querySelector(".giscus-frame");
+    frame?.contentWindow?.postMessage({ giscus: { setConfig: { theme } } }, "https://giscus.app");
 }
 
 function loginAdmin(event) {
@@ -731,126 +727,6 @@ function loginAdmin(event) {
     adminDialog.close();
     adminPasswordInput.value = "";
     enterEditMode();
-}
-
-function logoutAdminSession() {
-    guestbookAdminToken = "";
-    document.querySelector("#admin-entry").textContent = "管理登入";
-    exitEditMode();
-    renderGuestbookEntries(guestbookEntries, document.querySelector("#feedback-board"));
-}
-
-async function submitGuestbookReply(event) {
-    const form = event.target.closest(".guestbook-reply-form");
-    if (!form) return;
-    event.preventDefault();
-    const id = form.dataset.entryId;
-    const reply = form.querySelector("textarea").value.trim();
-    try {
-        await requestGuestbookApi(`/api/admin/entries/${id}/reply`, {
-            method: "PATCH",
-            body: JSON.stringify({ reply })
-        });
-        document.querySelector("#guestbook-status").textContent = "回覆已保存。";
-        await loadGuestbookEntries(document.querySelector("#feedback-board"));
-    } catch (error) {
-        document.querySelector("#guestbook-status").textContent = error.message;
-    }
-}
-
-async function handleGuestbookDelete(event) {
-    const button = event.target.closest("[data-delete-entry]");
-    if (!button || !window.confirm("確定刪除此留言？")) return;
-    try {
-        await requestGuestbookApi(`/api/admin/entries/${button.dataset.deleteEntry}`, { method: "DELETE" });
-        document.querySelector("#guestbook-status").textContent = "留言已刪除。";
-        await loadGuestbookEntries(document.querySelector("#feedback-board"));
-    } catch (error) {
-        document.querySelector("#guestbook-status").textContent = error.message;
-    }
-}
-
-async function loadGuestbookEntries(board) {
-    try {
-        const result = await requestGuestbookApi("/api/entries", {}, false);
-        guestbookEntries = Array.isArray(result.entries) ? result.entries : [];
-        renderGuestbookEntries(guestbookEntries, board);
-        document.querySelector("#guestbook-status").textContent = "";
-    } catch (error) {
-        document.querySelector("#guestbook-status").textContent = error.message;
-    }
-}
-
-async function requestGuestbookApi(path, options = {}, authorized = true) {
-    const headers = new Headers(options.headers || {});
-    if (options.body) headers.set("Content-Type", "application/json");
-    if (authorized && guestbookAdminToken) headers.set("Authorization", `Bearer ${guestbookAdminToken}`);
-    const response = await fetch(`${GUESTBOOK_API_URL}${path}`, { ...options, headers, cache: "no-store" });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.error || `留言服務回應錯誤（${response.status}）。`);
-    return result;
-}
-
-function renderGuestbookEntries(entries, board) {
-    if (!board) return;
-    if (!entries.length) {
-        const empty = document.createElement("p");
-        empty.className = "guestbook-empty";
-        empty.textContent = "目前沒有留言。";
-        board.replaceChildren(empty);
-        return;
-    }
-    const fragment = document.createDocumentFragment();
-    for (const entry of entries) {
-        const item = document.createElement("article");
-        item.className = "guestbook-entry";
-        const header = document.createElement("div");
-        header.className = "guestbook-entry-header";
-        const name = document.createElement("strong");
-        name.textContent = entry.name;
-        const date = document.createElement("time");
-        const createdAt = new Date(entry.created_at);
-        date.dateTime = Number.isNaN(createdAt.getTime()) ? "" : createdAt.toISOString();
-        date.textContent = Number.isNaN(createdAt.getTime())
-            ? ""
-            : createdAt.toLocaleString("zh-TW", { dateStyle: "medium", timeStyle: "short" });
-        const message = document.createElement("p");
-        message.textContent = entry.message;
-        header.append(name, date);
-        item.append(header, message);
-        if (entry.reply) {
-            const reply = document.createElement("div");
-            reply.className = "guestbook-reply";
-            const replyLabel = document.createElement("strong");
-            replyLabel.textContent = "管理員回覆";
-            const replyText = document.createElement("p");
-            replyText.textContent = entry.reply;
-            reply.append(replyLabel, replyText);
-            item.append(reply);
-        }
-        if (guestbookAdminToken) {
-            const replyForm = document.createElement("form");
-            replyForm.className = "guestbook-reply-form";
-            replyForm.dataset.entryId = entry.id;
-            const replyInput = document.createElement("textarea");
-            replyInput.maxLength = 500;
-            replyInput.rows = 2;
-            replyInput.placeholder = "管理員回覆";
-            replyInput.value = entry.reply || "";
-            replyInput.required = true;
-            const replyButton = document.createElement("button");
-            replyButton.type = "submit";
-            replyButton.textContent = "保存回覆";
-            const deleteButton = document.createElement("button");
-            deleteButton.type = "button";
-            deleteButton.dataset.deleteEntry = entry.id;
-            deleteButton.textContent = "刪除留言";
-            replyForm.append(replyInput, replyButton, deleteButton);
-            item.append(replyForm);
-        }
-        fragment.append(item);
-    }
-    board.replaceChildren(fragment);
 }
 
 function enterEditMode() {
@@ -1152,6 +1028,7 @@ function setTheme(theme, persist = false) {
     themeToggle.setAttribute("aria-label", `切換至${isLight ? "深" : "淺"}色主題`);
     themeToggle.setAttribute("aria-pressed", String(isLight));
     document.querySelector('meta[name="theme-color"]').content = isLight ? "#f2f5f1" : "#111713";
+    syncGiscusTheme(isLight ? "light" : "dark");
     if (persist) {
         try {
             localStorage.setItem("sp-card-catalog-theme", theme);

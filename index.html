@@ -9,9 +9,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./styles.css?v=14">
-    <script src="./guestbook-config.js?v=1"></script>
-    <script type="module" src="./app.js?v=19"></script>
+    <link rel="stylesheet" href="./styles.css?v=15">
+    <script type="module" src="./app.js?v=21"></script>
 </head>
 <body>
     <header class="site-header">
@@ -40,7 +39,7 @@
             <div class="intro-index" aria-hidden="true">SP<br><span>001</span></div>
             <div class="intro-actions">
                 <button id="toggle-compare" class="compare-toggle" type="button" aria-controls="compare-panel" aria-expanded="false">裝備試穿</button>
-                <button id="open-feedback" class="feedback-button" type="button" aria-haspopup="dialog" aria-controls="feedback-dialog">留言板</button>
+                <a id="open-feedback" class="feedback-button" href="#player-comments">玩家留言</a>
                 <button id="open-sponsor" class="sponsor-button" type="button">無情贊助</button>
             </div>
         </section>
@@ -194,6 +193,13 @@
                 </div>
             </section>
         </div>
+        <section id="player-comments" class="player-comments" aria-labelledby="player-comments-title">
+            <div class="player-comments-heading">
+                <h2 id="player-comments-title">玩家留言</h2>
+                <p>歡迎回報資料錯誤、分享攻略或交流遊戲資訊。</p>
+            </div>
+            <div id="giscus-comments" class="giscus-comments" aria-label="玩家留言討論區"></div>
+        </section>
     </main>
 
     <footer class="site-footer">
@@ -225,26 +231,6 @@
                 <img class="sponsor-qr" src="./images/mimic-sponsor-qr.png" alt="贊助付款 QR code" width="512" height="512">
             </section>
             <p class="sponsor-signature">By Lucienwooo</p>
-        </div>
-    </dialog>
-    <dialog id="feedback-dialog" class="feedback-dialog" aria-labelledby="feedback-dialog-title">
-        <div class="dialog-topline">
-            <span id="feedback-dialog-title">留言板</span>
-            <button class="dialog-close" id="close-feedback" type="button" aria-label="關閉留言板">×</button>
-        </div>
-        <div class="feedback-dialog-body">
-            <form id="guestbook-form" class="guestbook-form">
-                <label for="guestbook-name">顯示名稱</label>
-                <input id="guestbook-name" name="name" maxlength="32" autocomplete="nickname" required>
-                <label for="guestbook-message">留言內容</label>
-                <textarea id="guestbook-message" name="message" maxlength="500" rows="4" required></textarea>
-                <div class="guestbook-form-footer">
-                    <p>留言免登入；管理者登入後才能回覆或刪除。</p>
-                    <button type="submit">送出留言</button>
-                </div>
-            </form>
-            <p id="guestbook-status" class="guestbook-status" role="status" aria-live="polite"></p>
-            <div id="feedback-board" data-loaded="false"></div>
         </div>
     </dialog>
     <dialog id="admin-dialog" class="admin-dialog" aria-labelledby="admin-dialog-title">

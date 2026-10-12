@@ -1,1 +1,0 @@
-window.SURVIVAL_GUESTBOOK_API = "";
