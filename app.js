@@ -11,8 +11,11 @@ const effectLabels = {
     max_speed: ["增加最大速度", "減少最大速度"],
     attack_speed: ["增加攻擊速度", "減少攻擊速度"],
     attack_time: ["增加攻擊時間", "減少攻擊時間"],
+    attack_wait: ["攻擊等待增加", "攻擊等待減少"],
     attack_damage: ["攻擊傷害增加", "攻擊傷害減少"],
     attack_delay: ["增加攻擊延遲", "減少攻擊延遲"],
+    defense_time: ["增加防禦時間", "減少防禦時間"],
+    evasion_time: ["增加閃避時間", "減少閃避時間"],
     mp_consumption: ["增加MP消耗", "減少MP消耗"],
     bp_consumption: ["增加BP消耗", "減少BP消耗"],
     hp_recovery: ["增加HP恢復", "減少HP恢復"],
@@ -23,7 +26,8 @@ const effectLabels = {
     acceleration: ["增加加速度", "減少加速度"]
 };
 const effectLabelAliases = {
-    "攻擊延遲減少": { key: "attack_delay", increase: false }
+    "攻擊延遲減少": { key: "attack_delay", increase: false },
+    "攻擊延遲增加": { key: "attack_delay", increase: true }
 };
 
 const weaponSpecialSkillOptions = [
@@ -67,7 +71,7 @@ const characters = [
     ["Roland", "土"], ["Aurelli", "風"], ["Hawk", "風"], ["Hazel", "土"],
     ["Cara", "火"], ["Warren", "土"], ["Lucy", "水"], ["Will", "風"]
 ].map(([name, element], index) => ({ id: index + 1, name, element }));
-const compareSlots = { magic: null, weapon: null, armor: null };
+const comparisonStates = [createComparisonState()];
 const searchInput = document.querySelector("#search-input");
 const elementFilter = document.querySelector("#filter-element");
 const categoryFilter = document.querySelector("#filter-category");
@@ -83,11 +87,7 @@ const loadStatus = document.querySelector("#load-status");
 const visibleCount = document.querySelector("#visible-count");
 const comparePanel = document.querySelector("#compare-panel");
 const compareToggle = document.querySelector("#toggle-compare");
-const compareTotalList = document.querySelector("#compare-total-list");
-const compareActivationList = document.querySelector("#compare-activation-list");
-const characterOptions = document.querySelector("#character-options");
-const characterSelectButton = document.querySelector("#character-select-button");
-const characterPickerMenu = document.querySelector("#character-picker-menu");
+const addComparePanelButton = document.querySelector("#add-compare-panel");
 const editorToolbar = document.querySelector("#editor-toolbar");
 const adminDialog = document.querySelector("#admin-dialog");
 const adminPasswordInput = document.querySelector("#admin-password");
@@ -96,17 +96,23 @@ const themeToggle = document.querySelector("#theme-toggle");
 const importCardFile = document.querySelector("#import-card-file");
 const editorStatus = document.querySelector(".editor-status");
 let giscusLoaded = false;
-let selectedCharacterId = 1;
+let nextResourceSelectId = 1;
 let editMode = false;
 let cards = [];
 let abilitySort = { key: "", direction: "asc" };
 
 document.querySelector("#reset-filters").addEventListener("click", resetFilters);
 compareToggle.addEventListener("click", toggleComparePanel);
-characterSelectButton.addEventListener("click", toggleCharacterPicker);
 document.addEventListener("click", (event) => {
-    if (!characterPickerMenu.hidden && !characterSelectButton.closest(".character-picker").contains(event.target)) closeCharacterPicker();
+    document.querySelectorAll(".character-picker-menu:not([hidden])").forEach((menu) => {
+        const picker = menu.closest(".character-picker");
+        if (!picker.contains(event.target)) closeCharacterPicker(menu.closest(".compare-panel"));
+    });
+    document.querySelectorAll(".resource-select-control.is-open").forEach((control) => {
+        if (!control.contains(event.target)) closeResourceSelect(control);
+    });
 });
+addComparePanelButton.addEventListener("click", addComparisonPanel);
 themeToggle.addEventListener("click", () => {
     const nextTheme = document.documentElement.dataset.theme === "light" ? "dark" : "light";
     setTheme(nextTheme, true);
@@ -147,13 +153,17 @@ document.querySelector("#exit-edit-mode").addEventListener("click", exitEditMode
 document.querySelector("#open-feedback").addEventListener("click", loadGiscus);
 
 renderEffectFilters();
-renderCharacterOptions();
+initializeComparisonPanel(comparePanel, 0);
 setTheme(getSavedTheme());
-selectCharacter(selectedCharacterId);
+selectCharacter(1, 0);
 updateEffectFilterState();
+initializeResourceTextColors();
 
 document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && !characterPickerMenu.hidden) closeCharacterPicker();
+    if (event.key === "Escape") {
+        document.querySelectorAll(".character-picker-menu:not([hidden])").forEach((menu) => closeCharacterPicker(menu.closest(".compare-panel")));
+        document.querySelectorAll(".resource-select-control.is-open").forEach(closeResourceSelect);
+    }
     if (event.key === "/" && !sponsorDialog.open && !isTextEntry(event.target)) {
         event.preventDefault();
         searchInput.focus();
@@ -260,7 +270,7 @@ function createCard(card, index) {
     wearButton.className = "card-wear-button";
     wearButton.type = "button";
     const slot = equipmentSlotForCard(card);
-    const isWorn = compareSlots[slot]?.card.id === card.id;
+    const isWorn = comparisonStates.some((state) => state.slots[slot]?.card.id === card.id);
     wearButton.textContent = isWorn ? "已穿戴" : "穿戴";
     wearButton.classList.toggle("is-worn", isWorn);
     wearButton.setAttribute("aria-pressed", String(isWorn));
@@ -431,6 +441,7 @@ function appendSpecialSkillSelectors(list, card, firstSkills, secondSkills) {
             renderCompareSlots();
         });
         item.append(select);
+        enhanceResourceSelect(select);
         list.append(item);
     }
 }
@@ -947,6 +958,7 @@ function renderSpecialSkillFilters() {
             fragment.append(option);
         }
         select.replaceChildren(fragment);
+        enhanceResourceSelect(select);
     }
 }
 
@@ -964,7 +976,57 @@ function getSpecialSkillLabels(card) {
     });
 }
 
-function renderCharacterOptions() {
+function createComparisonState() {
+    return { characterId: 1, locked: false, slots: { magic: null, weapon: null, armor: null } };
+}
+
+function initializeComparisonPanel(panel, comparisonIndex) {
+    panel.dataset.comparisonIndex = String(comparisonIndex);
+    panel.querySelector(".character-select-button").addEventListener("click", () => toggleCharacterPicker(panel));
+    panel.querySelector(".compare-lock-toggle").addEventListener("click", (event) => {
+        const state = comparisonStates[comparisonIndex];
+        state.locked = !state.locked;
+        event.currentTarget.textContent = state.locked ? "解除鎖定" : "鎖定";
+        event.currentTarget.setAttribute("aria-pressed", String(state.locked));
+        panel.classList.toggle("is-locked", state.locked);
+        renderCompareSet(comparisonIndex);
+        renderCards();
+    });
+    renderCharacterOptions(comparisonIndex);
+}
+
+function addComparisonPanel() {
+    if (comparisonStates.length >= 2) return;
+    const comparisonIndex = comparisonStates.length;
+    comparisonStates.push(createComparisonState());
+    const panel = comparePanel.cloneNode(true);
+    const elementsWithIds = [panel, ...panel.querySelectorAll("[id]")].filter((element) => element.id);
+    const idMap = new Map(elementsWithIds.map((element) => [element.id, `${element.id}-2`]));
+    for (const element of elementsWithIds) element.id = idMap.get(element.id);
+    for (const element of [panel, ...panel.querySelectorAll("*")]) {
+        for (const attribute of ["aria-labelledby", "aria-controls"]) {
+            const value = element.getAttribute(attribute);
+            if (value) element.setAttribute(attribute, value.split(/\s+/).map((id) => idMap.get(id) || id).join(" "));
+        }
+    }
+    panel.dataset.comparisonIndex = String(comparisonIndex);
+    panel.hidden = false;
+    panel.classList.remove("is-locked");
+    const lockToggle = panel.querySelector(".compare-lock-toggle");
+    lockToggle.textContent = "鎖定";
+    lockToggle.setAttribute("aria-pressed", "false");
+    addComparePanelButton.after(panel);
+    addComparePanelButton.hidden = true;
+    initializeComparisonPanel(panel, comparisonIndex);
+    selectCharacter(comparisonStates[comparisonIndex].characterId, comparisonIndex);
+    renderCompareSet(comparisonIndex);
+    renderCards();
+}
+
+function renderCharacterOptions(comparisonIndex) {
+    const panel = document.querySelector(`.compare-panel[data-comparison-index="${comparisonIndex}"]`);
+    const state = comparisonStates[comparisonIndex];
+    const characterOptions = panel.querySelector(".character-options");
     const fragment = document.createDocumentFragment();
     for (const character of characters) {
         const option = document.createElement("button");
@@ -973,44 +1035,50 @@ function renderCharacterOptions() {
         option.setAttribute("role", "menuitem");
         option.dataset.characterId = character.id;
         option.setAttribute("aria-label", character.name);
-        option.setAttribute("aria-pressed", String(character.id === selectedCharacterId));
+        option.setAttribute("aria-pressed", String(character.id === state.characterId));
         const portrait = document.createElement("img");
         portrait.src = new URL(`images_interface_room_char_select_ch_${character.id + 12}_btn_1_c.png`, CHARACTER_ART_URL).href;
         portrait.alt = "";
         portrait.width = 41;
         portrait.height = 104;
         option.append(portrait);
-        option.addEventListener("click", () => selectCharacter(character.id));
+        option.addEventListener("click", () => selectCharacter(character.id, comparisonIndex));
         fragment.append(option);
     }
 
     characterOptions.replaceChildren(fragment);
 }
 
-function selectCharacter(characterId) {
+function selectCharacter(characterId, comparisonIndex) {
     const character = characters.find((item) => item.id === characterId);
     if (!character) return;
-    selectedCharacterId = character.id;
-    document.querySelector("#selected-character-portrait").src = new URL(`images_interface_room_char_select_ch_${character.id + 12}_btn_1_c.png`, CHARACTER_ART_URL).href;
-    const nameplate = document.querySelector("#selected-character-name");
+    const state = comparisonStates[comparisonIndex];
+    const panel = document.querySelector(`.compare-panel[data-comparison-index="${comparisonIndex}"]`);
+    state.characterId = character.id;
+    panel.querySelector(".selected-character-portrait").src = new URL(`images_interface_room_char_select_ch_${character.id + 12}_btn_1_c.png`, CHARACTER_ART_URL).href;
+    const nameplate = panel.querySelector(".selected-character-name");
     nameplate.textContent = character.name;
+    const characterSelectButton = panel.querySelector(".character-select-button");
     characterSelectButton.setAttribute("aria-label", `目前角色：${character.name}。開啟角色選擇`);
-    characterOptions.querySelectorAll(".character-option[data-character-id]").forEach((option) => {
+    panel.querySelectorAll(".character-option[data-character-id]").forEach((option) => {
         option.setAttribute("aria-pressed", String(Number(option.dataset.characterId) === character.id));
     });
-    closeCharacterPicker();
-    renderCompareActivation();
+    closeCharacterPicker(panel);
+    renderCompareActivation(comparisonIndex);
 }
 
-function toggleCharacterPicker() {
+function toggleCharacterPicker(panel) {
+    const characterPickerMenu = panel.querySelector(".character-picker-menu");
     const opening = characterPickerMenu.hidden;
     characterPickerMenu.hidden = !opening;
-    characterSelectButton.setAttribute("aria-expanded", String(opening));
+    panel.querySelector(".character-select-button").setAttribute("aria-expanded", String(opening));
 }
 
-function closeCharacterPicker() {
+function closeCharacterPicker(panel) {
+    if (!panel) return;
+    const characterPickerMenu = panel.querySelector(".character-picker-menu");
     characterPickerMenu.hidden = true;
-    characterSelectButton.setAttribute("aria-expanded", "false");
+    panel.querySelector(".character-select-button").setAttribute("aria-expanded", "false");
 }
 
 function getSavedTheme() {
@@ -1041,20 +1109,30 @@ function setTheme(theme, persist = false) {
 function toggleComparePanel() {
     const isExpanded = compareToggle.getAttribute("aria-expanded") === "true";
     compareToggle.setAttribute("aria-expanded", String(!isExpanded));
-    comparePanel.hidden = isExpanded;
+    document.querySelectorAll(".compare-panel").forEach((panel) => { panel.hidden = isExpanded; });
+    addComparePanelButton.hidden = isExpanded || comparisonStates.length >= 2;
 }
 
 function wearCard(card) {
+    const comparisonIndex = comparisonStates.findIndex((state) => !state.locked);
+    if (comparisonIndex < 0) return;
     const slot = equipmentSlotForCard(card);
-    compareSlots[slot] = { card, level: equipmentLevel.value, isBlack: false };
+    comparisonStates[comparisonIndex].slots[slot] = { card, level: equipmentLevel.value, isBlack: false };
     renderCompareSlots();
     renderCards();
     if (comparePanel.hidden) toggleComparePanel();
 }
 
 function renderCompareSlots() {
-    for (const [slot, selection] of Object.entries(compareSlots)) {
-        const content = comparePanel.querySelector(`[data-slot="${slot}"] .compare-slot-content`);
+    comparisonStates.forEach((_, comparisonIndex) => renderCompareSet(comparisonIndex));
+}
+
+function renderCompareSet(comparisonIndex) {
+    const panel = document.querySelector(`.compare-panel[data-comparison-index="${comparisonIndex}"]`);
+    const state = comparisonStates[comparisonIndex];
+    if (!panel || !state) return;
+    for (const [slot, selection] of Object.entries(state.slots)) {
+        const content = panel.querySelector(`[data-slot="${slot}"] .compare-slot-content`);
         if (!selection) {
             content.textContent = "尚未穿戴";
             content.className = "compare-slot-content is-empty";
@@ -1066,11 +1144,13 @@ function renderCompareSlots() {
         const art = document.createElement("div");
         art.className = "compare-art card-art";
         addArtwork(art, card, selection.level, selection.isBlack);
-        makeArtworkInteractive(art, `卸下${card.name_zh || card.name_en || "裝備"}`, () => {
-            compareSlots[slot] = null;
-            renderCompareSlots();
-            renderCards();
-        });
+        if (!state.locked) {
+            makeArtworkInteractive(art, `卸下${card.name_zh || card.name_en || "裝備"}`, () => {
+                state.slots[slot] = null;
+                renderCompareSlots();
+                renderCards();
+            });
+        }
         const details = document.createElement("div");
         details.className = "compare-card-details";
         const name = document.createElement("strong");
@@ -1082,8 +1162,10 @@ function renderCompareSlots() {
         removeButton.className = "compare-remove";
         removeButton.type = "button";
         removeButton.textContent = "卸下";
+        removeButton.disabled = state.locked;
         removeButton.addEventListener("click", () => {
-            compareSlots[slot] = null;
+            if (state.locked) return;
+            state.slots[slot] = null;
             renderCompareSlots();
             renderCards();
         });
@@ -1100,14 +1182,17 @@ function renderCompareSlots() {
             content.append(note);
         }
     }
-    renderCompareTotals();
-    renderCompareActivation();
+    renderCompareTotals(comparisonIndex);
+    renderCompareActivation(comparisonIndex);
 }
 
-function renderCompareActivation() {
+function renderCompareActivation(comparisonIndex) {
+    const panel = document.querySelector(`.compare-panel[data-comparison-index="${comparisonIndex}"]`);
+    const state = comparisonStates[comparisonIndex];
+    if (!panel || !state) return;
     for (const slot of ["magic", "weapon", "armor"]) {
-        const cell = compareActivationList.querySelector(`[data-slot="${slot}"]`);
-        const selection = compareSlots[slot];
+        const cell = panel.querySelector(`#compare-activation-list${comparisonIndex ? "-2" : ""} [data-slot="${slot}"]`);
+        const selection = state.slots[slot];
         if (!selection) {
             cell.replaceChildren(document.createTextNode("--"));
             continue;
@@ -1129,33 +1214,36 @@ function renderCompareActivation() {
 
         const rate = document.createElement("strong");
         rate.className = "activation-rate-value";
-        rate.textContent = `${formatPercent(calculateActivationRate(slot, selection))}%`;
+        rate.textContent = `${formatPercent(calculateActivationRate(slot, selection, comparisonIndex))}%`;
         cell.replaceChildren(toggleLabel, rate);
     }
 }
 
-function calculateActivationRate(slot, selection) {
+function calculateActivationRate(slot, selection, comparisonIndex) {
     const baseRate = { magic: 30, weapon: 50, armor: 50 }[slot];
     const levelBonus = 30 * (Number(selection.level) - 1) / 8;
-    const elementBonus = selectedCharacterElement() === selection.card.element ? 10 : 0;
+    const elementBonus = selectedCharacterElement(comparisonIndex) === selection.card.element ? 10 : 0;
     const goldBonus = selection.isBlack ? 0 : 10;
-    const hasFullGoldSet = Object.values(compareSlots).every((item) => item && !item.isBlack);
+    const hasFullGoldSet = Object.values(comparisonStates[comparisonIndex].slots).every((item) => item && !item.isBlack);
     const fullGoldSetBonus = hasFullGoldSet ? 10 : 0;
     return Math.min(100, baseRate + levelBonus + elementBonus + goldBonus + fullGoldSetBonus);
 }
 
-function selectedCharacterElement() {
-    return characters.find((character) => character.id === selectedCharacterId)?.element;
+function selectedCharacterElement(comparisonIndex) {
+    return characters.find((character) => character.id === comparisonStates[comparisonIndex].characterId)?.element;
 }
 
 function formatPercent(value) {
     return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
 }
 
-function renderCompareTotals() {
+function renderCompareTotals(comparisonIndex) {
+    const panel = document.querySelector(`.compare-panel[data-comparison-index="${comparisonIndex}"]`);
+    const state = comparisonStates[comparisonIndex];
+    if (!panel || !state) return;
     for (const slot of ["magic", "weapon", "armor"]) {
-        const cell = compareTotalList.querySelector(`[data-slot="${slot}"]`);
-        const selection = compareSlots[slot];
+        const cell = panel.querySelector(`#compare-total-list${comparisonIndex ? "-2" : ""} [data-slot="${slot}"]`);
+        const selection = state.slots[slot];
         if (!selection) {
             cell.replaceChildren(document.createTextNode("--"));
             continue;
@@ -1198,7 +1286,6 @@ function renderCompareTotals() {
 }
 
 function getSelectedSpecialStats(card, level) {
-    if (String(level) !== "9") return {};
     const parsedSpecial = parseEffectLines(getCardTextLines(card, "special"));
     const options = getCardSpecialSkillOptions(card, parsedSpecial.custom);
     const selectedSkill = getCardSkillSelection(card, options).one;
@@ -1206,7 +1293,9 @@ function getSelectedSpecialStats(card, level) {
     const s1StatKeys = new Set(options.one.flatMap((skill) => Object.keys(parseEffectLines([skill]).values)));
     for (const key of s1StatKeys) specialStats[key] = undefined;
     Object.assign(specialStats, parseEffectLines([selectedSkill]).values);
-    return Object.fromEntries(Object.entries(specialStats).filter(([, value]) => typeof value === "number"));
+    return Object.fromEntries(Object.entries(specialStats)
+        .filter(([, value]) => typeof value === "number")
+        .map(([key, value]) => [key, scaleStatToLevel(value, level)]));
 }
 
 function isTextEntry(element) {
@@ -1214,4 +1303,159 @@ function isTextEntry(element) {
         || element instanceof HTMLTextAreaElement
         || element instanceof HTMLSelectElement
         || element.isContentEditable;
+}
+
+function initializeResourceTextColors() {
+    colorizeResourceText(document.body);
+    const observer = new MutationObserver((records) => {
+        for (const record of records) {
+            if (record.type === "characterData") {
+                colorizeResourceText(record.target.parentElement);
+                continue;
+            }
+            record.addedNodes.forEach(colorizeResourceText);
+        }
+    });
+    observer.observe(document.body, { childList: true, characterData: true, subtree: true });
+}
+
+function colorizeResourceText(root) {
+    if (!root) return;
+    const textNodes = [];
+    if (root.nodeType === Node.TEXT_NODE) {
+        textNodes.push(root);
+    } else {
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        while (walker.nextNode()) textNodes.push(walker.currentNode);
+    }
+
+    for (const textNode of textNodes) {
+        const parent = textNode.parentElement;
+        const text = textNode.nodeValue || "";
+        if (!parent || parent.closest(".resource-token, script, style, textarea, option") || parent.isContentEditable || !/(HP|MP|BP)/.test(text)) continue;
+        const matches = [...text.matchAll(/HP|MP|BP/g)];
+        const fragment = document.createDocumentFragment();
+        let cursor = 0;
+        for (const match of matches) {
+            fragment.append(document.createTextNode(text.slice(cursor, match.index)));
+            const token = document.createElement("span");
+            token.className = `resource-token resource-token-${match[0].toLowerCase()}`;
+            token.textContent = match[0];
+            fragment.append(token);
+            cursor = match.index + match[0].length;
+        }
+        fragment.append(document.createTextNode(text.slice(cursor)));
+        textNode.replaceWith(fragment);
+    }
+}
+
+function appendColorizedText(container, text) {
+    const matches = [...String(text).matchAll(/HP|MP|BP/g)];
+    let cursor = 0;
+    for (const match of matches) {
+        container.append(document.createTextNode(String(text).slice(cursor, match.index)));
+        const token = document.createElement("span");
+        token.className = `resource-token resource-token-${match[0].toLowerCase()}`;
+        token.textContent = match[0];
+        container.append(token);
+        cursor = match.index + match[0].length;
+    }
+    container.append(document.createTextNode(String(text).slice(cursor)));
+}
+
+function enhanceResourceSelect(select) {
+    let control = select.closest(".resource-select-control");
+    const hasResourceTerms = [...select.options].some((option) => /(HP|MP|BP)/.test(option.textContent || ""));
+    if (!control && !hasResourceTerms) return;
+    if (!control) {
+        control = document.createElement("div");
+        control.className = "resource-select-control";
+        select.before(control);
+        select.hidden = true;
+        select.classList.add("resource-select-native");
+        control.append(select);
+        const trigger = document.createElement("button");
+        trigger.type = "button";
+        trigger.className = "resource-select-trigger";
+        trigger.setAttribute("role", "combobox");
+        trigger.setAttribute("aria-haspopup", "listbox");
+        trigger.setAttribute("aria-expanded", "false");
+        const display = document.createElement("span");
+        display.className = "resource-select-value";
+        const arrow = document.createElement("span");
+        arrow.className = "resource-select-arrow";
+        arrow.setAttribute("aria-hidden", "true");
+        arrow.textContent = "▾";
+        trigger.append(display, arrow);
+        const menu = document.createElement("div");
+        menu.className = "resource-select-menu";
+        menu.id = `resource-select-menu-${nextResourceSelectId++}`;
+        menu.setAttribute("role", "listbox");
+        menu.hidden = true;
+        trigger.setAttribute("aria-controls", menu.id);
+        control.append(trigger, menu);
+        trigger.addEventListener("click", () => {
+            if (control.classList.contains("is-open")) closeResourceSelect(control);
+            else openResourceSelect(control);
+        });
+        trigger.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") {
+                closeResourceSelect(control);
+                return;
+            }
+            if (!["ArrowDown", "Enter", " "].includes(event.key)) return;
+            event.preventDefault();
+            openResourceSelect(control);
+            menu.querySelector("[role='option']")?.focus();
+        });
+        select.addEventListener("change", () => updateResourceSelect(control, select));
+    }
+
+    control.dataset.selectId = select.id || select.getAttribute("aria-label") || "skill-filter";
+    const trigger = control.querySelector(".resource-select-trigger");
+    const menu = control.querySelector(".resource-select-menu");
+    trigger.disabled = select.disabled;
+    trigger.setAttribute("aria-label", select.getAttribute("aria-label") || select.labels?.[0]?.textContent.trim() || "選擇能力");
+    menu.replaceChildren();
+    for (const option of select.options) {
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "resource-select-option";
+        item.setAttribute("role", "option");
+        item.setAttribute("aria-selected", String(option.value === select.value));
+        appendColorizedText(item, option.textContent);
+        item.addEventListener("click", () => {
+            select.value = option.value;
+            select.dispatchEvent(new Event("change", { bubbles: true }));
+            updateResourceSelect(control, select);
+            closeResourceSelect(control);
+            trigger.focus();
+        });
+        menu.append(item);
+    }
+    updateResourceSelect(control, select);
+}
+
+function updateResourceSelect(control, select) {
+    const selectedOption = select.options[select.selectedIndex];
+    const display = control.querySelector(".resource-select-value");
+    if (!display || !selectedOption) return;
+    display.replaceChildren();
+    appendColorizedText(display, selectedOption.textContent);
+    control.querySelectorAll(".resource-select-option").forEach((option, index) => {
+        option.setAttribute("aria-selected", String(select.options[index]?.value === select.value));
+    });
+}
+
+function openResourceSelect(control) {
+    document.querySelectorAll(".resource-select-control.is-open").forEach(closeResourceSelect);
+    control.classList.add("is-open");
+    control.querySelector(".resource-select-trigger").setAttribute("aria-expanded", "true");
+    control.querySelector(".resource-select-menu").hidden = false;
+}
+
+function closeResourceSelect(control) {
+    control.classList.remove("is-open");
+    control.querySelector(".resource-select-trigger").setAttribute("aria-expanded", "false");
+    control.querySelector(".resource-select-menu").hidden = true;
 }

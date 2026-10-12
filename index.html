@@ -9,8 +9,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./styles.css?v=15">
-    <script type="module" src="./app.js?v=21"></script>
+    <link rel="stylesheet" href="./styles.css?v=17">
+    <script type="module" src="./app.js?v=23"></script>
 </head>
 <body>
     <header class="site-header">
@@ -38,26 +38,27 @@
             </div>
             <div class="intro-index" aria-hidden="true">SP<br><span>001</span></div>
             <div class="intro-actions">
-                <button id="toggle-compare" class="compare-toggle" type="button" aria-controls="compare-panel" aria-expanded="false">裝備試穿</button>
+                <button id="toggle-compare" class="compare-toggle" type="button" aria-controls="compare-panel" aria-expanded="false">裝備預覽</button>
                 <a id="open-feedback" class="feedback-button" href="#player-comments">玩家留言</a>
                 <button id="open-sponsor" class="sponsor-button" type="button">無情贊助</button>
             </div>
         </section>
 
-        <section id="compare-panel" class="compare-panel" aria-labelledby="compare-heading" hidden>
+        <section id="compare-panel" class="compare-panel" data-comparison-index="0" aria-labelledby="compare-heading" hidden>
             <div class="compare-panel-heading">
                 <p class="eyebrow">EQUIPMENT / FITTING</p>
-                <h2 id="compare-heading">裝備試穿</h2>
+                    <h2 id="compare-heading">裝備預覽</h2>
                 <div class="character-picker">
                     <button id="character-select-button" class="character-select-button" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="character-picker-menu">
-                    <img id="selected-character-portrait" src="./images/characters/images_interface_room_char_select_ch_13_btn_1_c.png" alt="">
-                    <span class="character-select-copy"><span>角色</span><strong id="selected-character-name">Xyrho</strong></span>
+                    <img id="selected-character-portrait" class="selected-character-portrait" src="./images/characters/images_interface_room_char_select_ch_13_btn_1_c.png" alt="">
+                    <span class="character-select-copy"><span>角色</span><strong id="selected-character-name" class="selected-character-name">Xyrho</strong></span>
                     <span class="character-select-arrow" aria-hidden="true">▾</span>
                     </button>
                     <div id="character-picker-menu" class="character-picker-menu" role="menu" aria-label="選擇角色" hidden>
                         <p class="character-picker-note">CHARACTER SELECT / 12</p>
                         <div id="character-options" class="character-options"></div>
                     </div>
+                    <button class="compare-lock-toggle" type="button" aria-pressed="false">鎖定</button>
                 </div>
             </div>
             <div class="compare-slots">
@@ -93,6 +94,7 @@
                 </div>
             </section>
         </section>
+        <button id="add-compare-panel" class="compare-add-panel" type="button" aria-controls="compare-panel-2" hidden>增加預覽欄位</button>
 
         <div class="catalog-layout">
             <aside class="filter-panel" aria-label="圖鑑篩選">
