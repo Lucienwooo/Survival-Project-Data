@@ -87,7 +87,9 @@ const loadStatus = document.querySelector("#load-status");
 const visibleCount = document.querySelector("#visible-count");
 const comparePanel = document.querySelector("#compare-panel");
 const compareToggle = document.querySelector("#toggle-compare");
+const comparePanelActions = document.querySelector("#compare-panel-actions");
 const addComparePanelButton = document.querySelector("#add-compare-panel");
+const clearComparePanelButton = document.querySelector("#clear-compare-panels");
 const editorToolbar = document.querySelector("#editor-toolbar");
 const adminDialog = document.querySelector("#admin-dialog");
 const adminPasswordInput = document.querySelector("#admin-password");
@@ -113,6 +115,7 @@ document.addEventListener("click", (event) => {
     });
 });
 addComparePanelButton.addEventListener("click", addComparisonPanel);
+clearComparePanelButton.addEventListener("click", clearAdditionalComparisonPanel);
 themeToggle.addEventListener("click", () => {
     const nextTheme = document.documentElement.dataset.theme === "light" ? "dark" : "light";
     setTheme(nextTheme, true);
@@ -296,13 +299,20 @@ function createEffectList(card, level = equipmentLevel.value, editable = false) 
     const levelNine = String(level) === "9";
     const levelStats = getStatsForLevel(card, level);
     const customStats = getCustomStatLines(card);
-    if (!editable && !levelNine && !Object.keys(levelStats).length && !customStats.length) return null;
+    const hasNoBaseStats = !Object.keys(levelStats).length && !customStats.length;
+    if (!editable && !levelNine && hasNoBaseStats) return null;
     const section = document.createElement("section");
     section.className = "card-ability-block";
     const list = document.createElement("ul");
     list.className = "card-effects";
     for (const [key, value] of Object.entries(levelStats)) list.append(createStatItem(key, value, !editable));
     appendTextLines(list, customStats);
+    if (!editable && levelNine && hasNoBaseStats) {
+        const item = document.createElement("li");
+        item.className = "waiting-state";
+        item.textContent = "一般能力資料待更新";
+        list.append(item);
+    }
     section.append(list);
 
     if (levelNine) {
@@ -1015,12 +1025,28 @@ function addComparisonPanel() {
     const lockToggle = panel.querySelector(".compare-lock-toggle");
     lockToggle.textContent = "鎖定";
     lockToggle.setAttribute("aria-pressed", "false");
-    addComparePanelButton.after(panel);
-    addComparePanelButton.hidden = true;
+    comparePanel.after(panel);
     initializeComparisonPanel(panel, comparisonIndex);
     selectCharacter(comparisonStates[comparisonIndex].characterId, comparisonIndex);
     renderCompareSet(comparisonIndex);
     renderCards();
+    updateComparePanelActions();
+}
+
+function clearAdditionalComparisonPanel() {
+    if (comparisonStates.length < 2) return;
+    document.querySelector('.compare-panel[data-comparison-index="1"]')?.remove();
+    comparisonStates.splice(1);
+    renderCompareSlots();
+    renderCards();
+    updateComparePanelActions();
+}
+
+function updateComparePanelActions() {
+    const isExpanded = compareToggle.getAttribute("aria-expanded") === "true";
+    comparePanelActions.hidden = !isExpanded;
+    addComparePanelButton.hidden = comparisonStates.length >= 2;
+    clearComparePanelButton.hidden = comparisonStates.length < 2;
 }
 
 function renderCharacterOptions(comparisonIndex) {
@@ -1110,7 +1136,7 @@ function toggleComparePanel() {
     const isExpanded = compareToggle.getAttribute("aria-expanded") === "true";
     compareToggle.setAttribute("aria-expanded", String(!isExpanded));
     document.querySelectorAll(".compare-panel").forEach((panel) => { panel.hidden = isExpanded; });
-    addComparePanelButton.hidden = isExpanded || comparisonStates.length >= 2;
+    updateComparePanelActions();
 }
 
 function wearCard(card) {
@@ -1178,7 +1204,8 @@ function renderCompareSet(comparisonIndex) {
         else {
             const note = document.createElement("p");
             note.className = "compare-level-note";
-            note.textContent = "能力資料僅適用第 9 級";
+            const hasNoBaseStats = !Object.keys(getStatsForLevel(card, selection.level)).length && !getCustomStatLines(card).length;
+            note.textContent = hasNoBaseStats ? "一般能力資料待更新" : "能力資料僅適用第 9 級";
             content.append(note);
         }
     }

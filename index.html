@@ -9,8 +9,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./styles.css?v=17">
-    <script type="module" src="./app.js?v=23"></script>
+    <link rel="stylesheet" href="./styles.css?v=18">
+    <script type="module" src="./app.js?v=25"></script>
 </head>
 <body>
     <header class="site-header">
@@ -94,7 +94,10 @@
                 </div>
             </section>
         </section>
-        <button id="add-compare-panel" class="compare-add-panel" type="button" aria-controls="compare-panel-2" hidden>增加預覽欄位</button>
+        <div id="compare-panel-actions" class="compare-panel-actions" hidden>
+            <button id="add-compare-panel" class="compare-add-panel" type="button" aria-controls="compare-panel-2">增加預覽欄位</button>
+            <button id="clear-compare-panels" class="compare-add-panel compare-clear-panels" type="button" aria-controls="compare-panel-2" hidden>清除欄位</button>
+        </div>
 
         <div class="catalog-layout">
             <aside class="filter-panel" aria-label="圖鑑篩選">
