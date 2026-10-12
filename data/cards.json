@@ -1,0 +1,388 @@
+{
+    "1111": {
+        "id": 1111,
+        "name_zh": "水 斧",
+        "name_en": "Water Axe",
+        "element": "水",
+        "art_subtype": "axe",
+        "stats": {
+            "attack_time": 9,
+            "attack_damage": 81,
+            "attack_delay": 54,
+            "mp_consumption": -45
+        }
+    },
+    "1112": {
+        "id": 1112,
+        "name_zh": "水 杖",
+        "name_en": "Water Staff",
+        "element": "水",
+        "art_subtype": "wand",
+        "stats": {
+            "attack_time": -18,
+            "attack_damage": 54,
+            "attack_delay": 45,
+            "mp_consumption": -27,
+            "weapon_speed": 9
+        }
+    },
+    "1113": {
+        "id": 1113,
+        "name_zh": "水 劍",
+        "name_en": "Water Sword",
+        "element": "水",
+        "art_subtype": "sword",
+        "stats": {}
+    },
+    "1114": {
+        "id": 1114,
+        "name_zh": "水 弓",
+        "name_en": "Water Bow",
+        "element": "水",
+        "art_subtype": "bow",
+        "stats": {
+            "attack_time": -36,
+            "attack_damage": -9,
+            "mp_consumption": -18,
+            "weapon_speed": 45
+        }
+    },
+    "1121": {
+        "id": 1121,
+        "name_zh": "火 斧",
+        "name_en": "Fire Axe",
+        "element": "火",
+        "art_subtype": "axe",
+        "stats": {
+            "attack_time": 36,
+            "attack_damage": 117,
+            "attack_delay": 72,
+            "mp_consumption": -27
+        },
+        "special_stats": {
+            "attack_damage": 54
+        },
+        "special_skills": [
+            "導致 對方攻擊遲鈍5秒 2%"
+        ]
+    },
+    "1122": {
+        "id": 1122,
+        "name_zh": "火 杖",
+        "name_en": "Fire Staff",
+        "element": "火",
+        "art_subtype": "wand",
+        "stats": {}
+    },
+    "1123": {
+        "id": 1123,
+        "name_zh": "火 劍",
+        "name_en": "Fire Sword",
+        "element": "火",
+        "art_subtype": "sword",
+        "stats": {}
+    },
+    "1124": {
+        "id": 1124,
+        "name_zh": "火 弓",
+        "name_en": "Fire Bow",
+        "element": "火",
+        "art_subtype": "bow",
+        "stats": {}
+    },
+    "1131": {
+        "id": 1131,
+        "name_zh": "土 斧",
+        "name_en": "Earth Axe",
+        "element": "土",
+        "art_subtype": "axe",
+        "stats": {
+            "attack_time": 18,
+            "attack_damage": 99,
+            "attack_delay": 81,
+            "mp_consumption": 9
+        }
+    },
+    "1132": {
+        "id": 1132,
+        "name_zh": "土 杖",
+        "name_en": "Earth Staff",
+        "element": "土",
+        "art_subtype": "wand",
+        "stats": {
+            "attack_time": -18,
+            "attack_damage": 81,
+            "attack_delay": 81,
+            "mp_consumption": 18,
+            "weapon_speed": -9
+        }
+    },
+    "1133": {
+        "id": 1133,
+        "name_zh": "土 劍",
+        "name_en": "Earth Sword",
+        "element": "土",
+        "art_subtype": "sword",
+        "stats": {}
+    },
+    "1134": {
+        "id": 1134,
+        "name_zh": "土 弓",
+        "name_en": "Earth Bow",
+        "element": "土",
+        "art_subtype": "bow",
+        "stats": {}
+    },
+    "1141": {
+        "id": 1141,
+        "name_zh": "風 斧",
+        "name_en": "Wind Axe",
+        "element": "風",
+        "art_subtype": "axe",
+        "stats": {
+            "attack_time": -9,
+            "attack_damage": -63,
+            "attack_delay": 63,
+            "mp_consumption": 54
+        }
+    },
+    "1142": {
+        "id": 1142,
+        "name_zh": "風 杖",
+        "name_en": "Wind Staff",
+        "element": "風",
+        "art_subtype": "wand",
+        "stats": {}
+    },
+    "1143": {
+        "id": 1143,
+        "name_zh": "風 劍",
+        "name_en": "Wind Sword",
+        "element": "風",
+        "art_subtype": "sword",
+        "stats": {
+            "attack_time": -54,
+            "attack_damage": -9,
+            "attack_delay": -9,
+            "mp_consumption": 63
+        }
+    },
+    "1144": {
+        "id": 1144,
+        "name_zh": "風 弓",
+        "name_en": "Wind Bow",
+        "element": "風",
+        "art_subtype": "bow",
+        "stats": {}
+    },
+    "1211": {
+        "id": 1211,
+        "name_zh": "水 盾",
+        "name_en": "Water Shield",
+        "element": "水",
+        "art_subtype": "shield",
+        "stats": {
+            "hp_recovery": 63,
+            "bp_recovery": 90,
+            "mp_recovery": 180,
+            "vibration_rate": -63
+        }
+    },
+    "1212": {
+        "id": 1212,
+        "name_zh": "水 墜飾",
+        "name_en": "Water Pendant",
+        "element": "水",
+        "art_subtype": "pendant",
+        "stats": {
+            "hp_recovery": 99,
+            "bp_recovery": 27,
+            "mp_recovery": 27
+        }
+    },
+    "1213": {
+        "id": 1213,
+        "name_zh": "水 甲",
+        "name_en": "Water Armor",
+        "element": "水",
+        "art_subtype": "armor",
+        "stats": {}
+    },
+    "1214": {
+        "id": 1214,
+        "name_zh": "水 靴",
+        "name_en": "Water Boots",
+        "element": "水",
+        "art_subtype": "boots",
+        "stats": {}
+    },
+    "1221": {
+        "id": 1221,
+        "name_zh": "火 盾",
+        "name_en": "Fire Shield",
+        "element": "火",
+        "art_subtype": "shield",
+        "stats": {}
+    },
+    "1222": {
+        "id": 1222,
+        "name_zh": "火 墜飾",
+        "name_en": "Fire Pendant",
+        "element": "火",
+        "art_subtype": "pendant",
+        "stats": {
+            "hp_recovery": 27,
+            "bp_recovery": 36,
+            "mp_recovery": 108
+        }
+    },
+    "1223": {
+        "id": 1223,
+        "name_zh": "火 甲",
+        "name_en": "Fire Armor",
+        "element": "火",
+        "art_subtype": "armor",
+        "stats": {
+            "attack_delay": -63,
+            "attack_damage": -36,
+            "vibration_rate": 63
+        }
+    },
+    "1224": {
+        "id": 1224,
+        "name_zh": "火 靴",
+        "name_en": "Fire Boots",
+        "element": "火",
+        "art_subtype": "boots",
+        "stats": {
+            "max_speed": 27,
+            "attack_speed": 90,
+            "bp_consumption": -9
+        }
+    },
+    "1231": {
+        "id": 1231,
+        "name_zh": "土 盾",
+        "name_en": "Earth Shield",
+        "element": "土",
+        "art_subtype": "shield",
+        "stats": {}
+    },
+    "1232": {
+        "id": 1232,
+        "name_zh": "土 墜飾",
+        "name_en": "Earth Pendant",
+        "element": "土",
+        "art_subtype": "pendant",
+        "stats": {
+            "hp_recovery": 63,
+            "bp_recovery": 45,
+            "mp_recovery": 72
+        }
+    },
+    "1233": {
+        "id": 1233,
+        "name_zh": "土 甲",
+        "name_en": "Earth Armor",
+        "element": "土",
+        "art_subtype": "armor",
+        "stats": {
+            "attack_damage": -27,
+            "vibration_rate": -90
+        }
+    },
+    "1234": {
+        "id": 1234,
+        "name_zh": "土 靴",
+        "name_en": "Earth Boots",
+        "element": "土",
+        "art_subtype": "boots",
+        "stats": {
+            "max_speed": 45,
+            "attack_speed": 54,
+            "bp_consumption": -18
+        }
+    },
+    "1241": {
+        "id": 1241,
+        "name_zh": "風 盾",
+        "name_en": "Wind Shield",
+        "element": "風",
+        "art_subtype": "shield",
+        "stats": {}
+    },
+    "1242": {
+        "id": 1242,
+        "name_zh": "風 墜飾",
+        "name_en": "Wind Pendant",
+        "element": "風",
+        "art_subtype": "pendant",
+        "stats": {}
+    },
+    "1243": {
+        "id": 1243,
+        "name_zh": "風 甲",
+        "name_en": "Wind Armor",
+        "element": "風",
+        "art_subtype": "armor",
+        "stats": {
+            "max_speed": 90,
+            "attack_damage": 9,
+            "mp_consumption": 18
+        }
+    },
+    "1244": {
+        "id": 1244,
+        "name_zh": "風 靴",
+        "name_en": "Wind Boots",
+        "element": "風",
+        "art_subtype": "boots",
+        "stats": {}
+    },
+    "1311": {
+        "id": 1311,
+        "name_zh": "水 魔法",
+        "name_en": "Water Magic",
+        "element": "水",
+        "art_subtype": "magic",
+        "stats": {
+            "attack_time": -9,
+            "attack_damage": 18,
+            "attack_delay": 27,
+            "mp_consumption": 36,
+            "weapon_speed": 99
+        }
+    },
+    "1321": {
+        "id": 1321,
+        "name_zh": "火 魔法",
+        "name_en": "Fire Magic",
+        "element": "火",
+        "art_subtype": "magic",
+        "stats": {
+            "attack_speed": 9,
+            "attack_damage": 117,
+            "attack_delay": 27
+        }
+    },
+    "1331": {
+        "id": 1331,
+        "name_zh": "土 魔法",
+        "name_en": "Earth Magic",
+        "element": "土",
+        "art_subtype": "magic",
+        "stats": {
+            "attack_damage": 36,
+            "attack_delay": 72,
+            "mp_consumption": 54
+        }
+    },
+    "1341": {
+        "id": 1341,
+        "name_zh": "風 魔法",
+        "name_en": "Wind Magic",
+        "element": "風",
+        "art_subtype": "magic",
+        "stats": {}
+    }
+}
