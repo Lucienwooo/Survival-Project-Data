@@ -1,0 +1,668 @@
+<!doctype html>
+<html lang="zh-Hant" data-theme="dark">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#111713">
+    <title>角色動作圖瀏覽器 | Survival Project Archive</title>
+    <style>
+        :root { color-scheme: dark; --bg: #101713; --panel: #17211b; --line: #34433a; --ink: #e7eee8; --soft: #a6b3a9; --muted: #718078; --acid: #c9ef5b; --coral: #df735d; --blue: #82b9c0; }
+        * { box-sizing: border-box; }
+        body { min-width: 320px; margin: 0; color: var(--ink); background: var(--bg); font-family: "Noto Sans TC", "Microsoft JhengHei", sans-serif; }
+        button, input, select { font: inherit; }
+        button, select, input[type="number"] { color: var(--ink); background: #111a15; border: 1px solid var(--line); }
+        button { min-height: 34px; padding: 5px 10px; cursor: pointer; }
+        button:hover, button:focus-visible { border-color: var(--acid); }
+        a { color: var(--blue); }
+        .topbar { min-height: 58px; padding: 0 max(20px, calc((100vw - 1680px) / 2)); display: flex; align-items: center; justify-content: space-between; gap: 20px; background: #0b100d; border-bottom: 2px solid var(--acid); }
+        .brand { color: var(--ink); font-family: "Barlow Condensed", sans-serif; font-size: 15px; font-weight: 700; letter-spacing: 1px; text-decoration: none; }
+        .brand span { color: var(--muted); }
+        .topbar a:last-child { font-size: 13px; }
+        main { width: min(1680px, calc(100% - 40px)); margin: 0 auto; }
+        .heading { min-height: 112px; display: flex; align-items: center; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--line); }
+        .eyebrow { margin: 0 0 6px; color: var(--acid); font-size: 11px; font-weight: 700; letter-spacing: 1.5px; }
+        h1 { margin: 0; font-size: 27px; line-height: 1.2; }
+        .load-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+        .load-button { min-height: 38px; padding: 7px 12px; display: inline-flex; align-items: center; color: var(--ink); background: var(--panel); border: 1px solid var(--line); cursor: pointer; font-size: 13px; font-weight: 700; }
+        .load-button.primary { color: #10150f; background: var(--acid); border-color: var(--acid); }
+        .load-button input { width: 1px; height: 1px; position: absolute; overflow: hidden; opacity: 0; }
+        .status-line { min-height: 32px; display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 12px; }
+        .workspace { min-height: min(760px, calc(100vh - 220px)); display: grid; grid-template-columns: 268px minmax(0, 1fr) 290px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+        .controls, .preview { min-width: 0; padding: 16px; background: var(--panel); }
+        .controls { border-right: 1px solid var(--line); }
+        .preview { border-left: 1px solid var(--line); }
+        h2 { margin: 0 0 13px; font-size: 14px; }
+        .control-group { margin: 0 0 17px; }
+        .control-title { margin: 0 0 7px; display: block; color: var(--soft); font-size: 11px; font-weight: 700; }
+        .file-select { width: 100%; min-height: 36px; padding: 5px 7px; font-size: 12px; }
+        .field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+        .field-grid label { min-width: 0; color: var(--soft); font-size: 11px; }
+        .field-grid input { width: 100%; height: 32px; margin-top: 4px; padding: 4px 6px; }
+        .control-row { display: flex; align-items: center; gap: 7px; }
+        .control-row select { min-width: 0; min-height: 34px; flex: 1; padding: 4px 6px; font-size: 11px; }
+        .component-select { width: 100%; min-height: 150px; padding: 4px; font-size: 10px; line-height: 1.5; }
+        .center-readout { min-height: 32px; margin: 7px 0; color: var(--soft); font-size: 11px; line-height: 1.6; }
+        .wide-button { width: 100%; margin-top: 7px; }
+        [hidden] { display: none !important; }
+        .mode-fields { margin-top: 7px; }
+        .direction-pad { width: 132px; margin: 0 auto 15px; display: grid; grid-template-columns: repeat(3, 40px); grid-template-rows: repeat(3, 36px); gap: 4px; }
+        .direction-pad button { min-height: 0; padding: 0; color: var(--soft); font-size: 11px; }
+        .direction-pad button[aria-pressed="true"] { color: #10150f; background: var(--acid); border-color: var(--acid); }
+        [data-dir="0"] { grid-area: 1 / 2; } [data-dir="1"] { grid-area: 1 / 3; } [data-dir="2"] { grid-area: 2 / 3; } [data-dir="3"] { grid-area: 3 / 3; }
+        [data-dir="4"] { grid-area: 3 / 2; } [data-dir="5"] { grid-area: 3 / 1; } [data-dir="6"] { grid-area: 2 / 1; } [data-dir="7"] { grid-area: 1 / 1; }
+        .play-controls { display: grid; grid-template-columns: 36px 1fr 36px; gap: 5px; }
+        .play-controls button { min-height: 36px; padding: 3px; }
+        .play-controls .play-button { color: var(--acid); font-weight: 700; }
+        .frame-slider { width: 100%; margin: 10px 0 0; accent-color: var(--acid); }
+        .frame-readout { margin: 7px 0 0; color: var(--soft); font-size: 11px; line-height: 1.7; overflow-wrap: anywhere; }
+        .sheet-area { min-width: 0; padding: 12px; display: flex; flex-direction: column; }
+        .sheet-toolbar { min-height: 34px; margin-bottom: 9px; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--soft); font-size: 11px; }
+        .zoom-control { width: 140px; accent-color: var(--acid); }
+        .sheet-viewport { min-height: 280px; height: min(68vh, 720px); overflow: auto; overscroll-behavior: contain; background-color: #0c110e; background-image: linear-gradient(45deg, #17211b 25%, transparent 25%), linear-gradient(-45deg, #17211b 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #17211b 75%), linear-gradient(-45deg, transparent 75%, #17211b 75%); background-position: 0 0, 0 8px, 8px -8px, -8px 0; background-size: 16px 16px; }
+        #sheet-canvas { display: block; image-rendering: pixelated; cursor: crosshair; }
+        .empty-state { min-height: 280px; display: grid; place-items: center; color: var(--muted); font-size: 13px; text-align: center; }
+        .preview-stage { min-height: 250px; display: grid; place-items: center; overflow: hidden; background-color: #0c110e; background-image: linear-gradient(45deg, #17211b 25%, transparent 25%), linear-gradient(-45deg, #17211b 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #17211b 75%), linear-gradient(-45deg, transparent 75%, #17211b 75%); background-position: 0 0, 0 8px, 8px -8px, -8px 0; background-size: 16px 16px; }
+        #frame-canvas { width: min(100%, 280px); height: auto; max-width: 100%; max-height: 300px; image-rendering: pixelated; }
+        .preview-caption { margin: 9px 0 14px; color: var(--soft); font-size: 11px; text-align: center; overflow-wrap: anywhere; }
+        #frame-canvas.manual-center { cursor: crosshair; }
+        .drop-active { outline: 2px solid var(--acid); outline-offset: -3px; }
+        @media (max-width: 1120px) { .workspace { grid-template-columns: 250px minmax(0, 1fr); } .preview { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr); align-items: center; gap: 0 18px; border-top: 1px solid var(--line); border-left: 0; } .preview h2, .preview .direction-pad, .preview .play-controls, .preview .frame-slider, .preview .frame-readout { grid-column: 2; } .preview h2 { grid-row: 1; } .preview-stage { grid-column: 1; grid-row: 1 / span 5; } .preview-caption { grid-column: 1; } }
+        @media (max-width: 680px) { main { width: calc(100% - 24px); } .topbar { padding: 0 12px; } .heading { padding: 17px 0; align-items: flex-start; flex-direction: column; } h1 { font-size: 23px; } .workspace { grid-template-columns: minmax(0, 1fr); } .controls, .preview { border: 0; } .sheet-area { grid-row: 2; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); } .sheet-viewport { height: 60vh; } .preview { grid-column: 1; grid-template-columns: minmax(0, 1fr); } .preview h2, .preview .direction-pad, .preview .play-controls, .preview .frame-slider, .preview .frame-readout, .preview-stage, .preview-caption { grid-column: 1; grid-row: auto; } .preview-stage { min-height: 210px; } }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <span class="brand">SP <span>/ ARCHIVE</span></span>
+    </header>
+    <main>
+        <section class="heading">
+            <div><p class="eyebrow">SPRITE INSPECTOR / 001</p><h1>角色動作圖瀏覽器</h1></div>
+            <div class="load-actions">
+                <label class="load-button primary">選擇圖片<input id="image-files" type="file" accept="image/*" multiple></label>
+                <label class="load-button">選擇資料夾<input id="folder-files" type="file" accept="image/*" webkitdirectory directory multiple></label>
+            </div>
+        </section>
+        <div class="status-line"><span id="status" role="status" aria-live="polite">尚未載入圖片</span><span id="image-size"></span></div>
+        <section class="workspace">
+            <aside class="controls" aria-label="圖格與透明區段設定">
+                <h2>圖檔分割</h2>
+                <div class="control-group"><label class="control-title" for="file-select">目前圖檔</label><select id="file-select" class="file-select" aria-label="目前圖檔" disabled><option>請選擇圖片</option></select></div>
+                <div class="control-group">
+                    <label class="control-title" for="detection-mode">偵測方式</label>
+                    <select id="detection-mode" class="file-select"><option value="alpha" selected>透明像素範圍</option><option value="grid">固定格線</option></select>
+                </div>
+                <div id="alpha-controls">
+                    <div class="control-group">
+                        <span class="control-title">透明像素範圍</span>
+                        <div class="field-grid">
+                            <label>Alpha 門檻<input id="alpha-threshold" type="number" min="0" max="255" value="1"></label>
+                            <label>最小面積<input id="min-area" type="number" min="1" value="80"></label>
+                            <label>鄰近合併(px)<input id="merge-gap" type="number" min="0" max="64" value="0"></label>
+                        </div>
+                        <button id="scan-alpha" class="wide-button" type="button">重新掃描像素</button>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-title" for="center-mode">中心點</label>
+                        <select id="center-mode" class="file-select"><option value="bbox">範圍中心</option><option value="bottom" selected>底部中心</option><option value="manual">手動設定</option></select>
+                        <button id="reset-center" class="wide-button" type="button" disabled>重設為底部中心</button>
+                        <p id="center-readout" class="center-readout" aria-live="polite">尚未選取區段</p>
+                        <button id="export-map" class="wide-button" type="button" disabled>匯出座標 JSON</button>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-title" for="component-select">偵測區段</label>
+                        <select id="component-select" class="component-select" size="8" aria-label="透明像素區段" disabled></select>
+                    </div>
+                </div>
+                <div id="grid-controls" hidden>
+                    <div class="control-group">
+                        <span class="control-title">切格尺寸</span>
+                        <div class="field-grid">
+                            <label>欄數<input id="columns" type="number" min="1" max="200" value="10"></label>
+                            <label>列數<input id="rows" type="number" min="1" max="500" value="31"></label>
+                            <label>格寬<input id="cell-width" type="number" min="1" max="4096" value="80"></label>
+                            <label>格高<input id="cell-height" type="number" min="1" max="4096" value="90"></label>
+                            <label>左邊界<input id="margin-x" type="number" min="0" value="0"></label>
+                            <label>上邊界<input id="margin-y" type="number" min="0" value="0"></label>
+                            <label>水平間距<input id="gap-x" type="number" min="0" value="0"></label>
+                            <label>垂直間距<input id="gap-y" type="number" min="0" value="0"></label>
+                        </div>
+                        <button id="guess-grid" class="wide-button" type="button">依圖片估算格線</button>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-title" for="direction-layout">播放排列</label>
+                    <div class="control-row"><select id="direction-layout"><option value="rows" data-grid-only>每列代表一方向</option><option value="columns" data-grid-only>每欄代表一方向</option><option value="blocks" selected>每方向連續排列</option><option value="linear">連續影格</option></select></div>
+                    <div class="field-grid mode-fields"><label>起始索引<input id="start-frame" type="number" min="0" value="0"></label><label>每方向影格<input id="animation-frames" type="number" min="1" value="8"></label><label>播放 FPS<input id="fps" type="number" min="1" max="30" value="8"></label></div>
+                </div>
+            </aside>
+            <section class="sheet-area" aria-label="精靈圖格預覽">
+                <div class="sheet-toolbar"><span id="grid-summary">透明像素區段</span><label>縮放 <input id="zoom" class="zoom-control" type="range" min="25" max="400" step="25" value="75"> <span id="zoom-value">75%</span></label></div>
+                <div id="sheet-viewport" class="sheet-viewport"><div id="empty-state" class="empty-state">選擇一張角色動作圖</div><canvas id="sheet-canvas" hidden></canvas></div>
+            </section>
+            <aside class="preview" aria-label="單格與動畫預覽">
+                <h2>方向預覽</h2>
+                <div class="preview-stage"><canvas id="frame-canvas" width="80" height="90"></canvas></div>
+                <p id="frame-caption" class="preview-caption">尚未選取影格</p>
+                <div class="direction-pad" aria-label="八方向">
+                    <button type="button" data-dir="0" aria-label="北" aria-pressed="true">N</button><button type="button" data-dir="1" aria-label="東北" aria-pressed="false">NE</button>
+                    <button type="button" data-dir="2" aria-label="東" aria-pressed="false">E</button><button type="button" data-dir="3" aria-label="東南" aria-pressed="false">SE</button>
+                    <button type="button" data-dir="4" aria-label="南" aria-pressed="false">S</button><button type="button" data-dir="5" aria-label="西南" aria-pressed="false">SW</button>
+                    <button type="button" data-dir="6" aria-label="西" aria-pressed="false">W</button><button type="button" data-dir="7" aria-label="西北" aria-pressed="false">NW</button>
+                </div>
+                <div class="play-controls"><button id="previous-frame" type="button" aria-label="上一格">◀</button><button id="play-animation" class="play-button" type="button" aria-pressed="false">播放</button><button id="next-frame" type="button" aria-label="下一格">▶</button></div>
+                <input id="frame-slider" class="frame-slider" type="range" min="0" max="309" value="0" aria-label="目前影格">
+                <p id="frame-readout" class="frame-readout">影格 -- / --<br>位置 --</p>
+            </aside>
+        </section>
+    </main>
+    <script>
+        const byId = (id) => document.getElementById(id);
+        const state = { files: [], image: null, objectUrl: "", frame: 0, direction: 0, timer: 0, animationOffset: 0, pixelComponents: [], rawComponents: [], components: [], centerMode: "bottom" };
+        const fields = ["columns", "rows", "cell-width", "cell-height", "margin-x", "margin-y", "gap-x", "gap-y"];
+        const sheetCanvas = byId("sheet-canvas");
+        const sheetContext = sheetCanvas.getContext("2d");
+        const frameCanvas = byId("frame-canvas");
+        const frameContext = frameCanvas.getContext("2d");
+
+        function numberValue(id, minimum = 0) {
+            const value = Number(byId(id).value);
+            return Number.isFinite(value) ? Math.max(minimum, Math.floor(value)) : minimum;
+        }
+
+        function gridSettings() {
+            return {
+                columns: numberValue("columns", 1), rows: numberValue("rows", 1),
+                width: numberValue("cell-width", 1), height: numberValue("cell-height", 1),
+                marginX: numberValue("margin-x"), marginY: numberValue("margin-y"),
+                gapX: numberValue("gap-x"), gapY: numberValue("gap-y")
+            };
+        }
+
+        function frameRect(index) {
+            if (byId("detection-mode").value === "alpha") {
+                const component = state.components[index];
+                return component ? { x: component.x, y: component.y, width: component.width, height: component.height, component } : null;
+            }
+            const grid = gridSettings();
+            const column = index % grid.columns;
+            const row = Math.floor(index / grid.columns);
+            return { x: grid.marginX + column * (grid.width + grid.gapX), y: grid.marginY + row * (grid.height + grid.gapY), width: grid.width, height: grid.height, column, row };
+        }
+
+        function frameTotal() {
+            const grid = gridSettings();
+            return grid.columns * grid.rows;
+        }
+
+        function totalFrames() {
+            return byId("detection-mode").value === "alpha" ? state.components.length : frameTotal();
+        }
+
+        function drawAnchorMarker(context, x, y) {
+            context.save();
+            context.strokeStyle = "#101713";
+            context.lineWidth = 3;
+            context.beginPath();
+            context.moveTo(x - 5, y);
+            context.lineTo(x + 5, y);
+            context.moveTo(x, y - 5);
+            context.lineTo(x, y + 5);
+            context.stroke();
+            context.strokeStyle = "#ff526d";
+            context.lineWidth = 1;
+            context.beginPath();
+            context.moveTo(x - 5, y);
+            context.lineTo(x + 5, y);
+            context.moveTo(x, y - 5);
+            context.lineTo(x, y + 5);
+            context.stroke();
+            context.restore();
+        }
+
+        function stopAnimation() {
+            if (state.timer) window.clearInterval(state.timer);
+            state.timer = 0;
+            byId("play-animation").textContent = "播放";
+            byId("play-animation").setAttribute("aria-pressed", "false");
+        }
+
+        function renderSheet() {
+            if (!state.image) return;
+            const grid = gridSettings();
+            sheetCanvas.width = state.image.naturalWidth;
+            sheetCanvas.height = state.image.naturalHeight;
+            sheetContext.imageSmoothingEnabled = false;
+            sheetContext.clearRect(0, 0, sheetCanvas.width, sheetCanvas.height);
+            sheetContext.drawImage(state.image, 0, 0);
+            const zoom = numberValue("zoom", 25) / 100;
+            sheetCanvas.style.width = `${Math.round(state.image.naturalWidth * zoom)}px`;
+            byId("empty-state").hidden = true;
+            sheetCanvas.hidden = false;
+            const total = totalFrames();
+            byId("grid-summary").textContent = byId("detection-mode").value === "alpha"
+                ? `${state.components.length} 個透明區段`
+                : `${grid.columns} × ${grid.rows} / ${grid.columns * grid.rows} 格`;
+            byId("frame-slider").max = String(Math.max(0, total - 1));
+            if (!total) {
+                frameCanvas.width = 1;
+                frameCanvas.height = 1;
+                byId("frame-caption").textContent = "沒有符合面積條件的區段";
+                byId("frame-readout").textContent = "尚無可預覽區段";
+                byId("center-readout").textContent = "尚未選取區段";
+                renderSheetOverlay();
+                return;
+            }
+            state.frame = Math.max(0, Math.min(total - 1, state.frame));
+            renderFrame(state.frame);
+        }
+
+        function renderFrame(index) {
+            if (!state.image) return;
+            const total = totalFrames();
+            if (!total) return;
+            state.frame = Math.max(0, Math.min(total - 1, index));
+            const rect = frameRect(index);
+            if (!rect) return;
+            frameCanvas.width = rect.width;
+            frameCanvas.height = rect.height;
+            frameContext.clearRect(0, 0, rect.width, rect.height);
+            frameContext.imageSmoothingEnabled = false;
+            const sourceWidth = Math.max(0, Math.min(rect.width, state.image.naturalWidth - rect.x));
+            const sourceHeight = Math.max(0, Math.min(rect.height, state.image.naturalHeight - rect.y));
+            if (sourceWidth && sourceHeight) frameContext.drawImage(state.image, rect.x, rect.y, sourceWidth, sourceHeight, 0, 0, sourceWidth, sourceHeight);
+            byId("frame-slider").value = String(state.frame);
+            const file = state.files[Number(byId("file-select").value)];
+            if (rect.component) {
+                const component = rect.component;
+                const centerX = component.centerX - rect.x;
+                const centerY = component.centerY - rect.y;
+                drawAnchorMarker(frameContext, centerX + 0.5, centerY + 0.5);
+                byId("frame-readout").textContent = `區段 ${state.frame + 1} / ${total} · ${component.area} 像素\n範圍 X ${rect.x} · Y ${rect.y} · ${rect.width} × ${rect.height}`;
+                byId("frame-caption").textContent = `${file?.name || "圖格"} · ${rect.width} × ${rect.height}`;
+                byId("center-readout").textContent = `中心 X ${Math.round(component.centerX)} · Y ${Math.round(component.centerY)}`;
+                byId("component-select").value = String(state.frame);
+                byId("reset-center").disabled = false;
+                byId("export-map").disabled = false;
+                frameCanvas.classList.toggle("manual-center", state.centerMode === "manual");
+            } else {
+                byId("frame-readout").textContent = `影格 ${state.frame + 1} / ${total}\n位置 X ${rect.x} · Y ${rect.y}`;
+                byId("frame-caption").textContent = `${file?.name || "圖格"} · 第 ${rect.row + 1} 列 / 第 ${rect.column + 1} 欄`;
+                byId("center-readout").textContent = "格線模式沒有獨立中心點";
+                byId("reset-center").disabled = true;
+                byId("export-map").disabled = true;
+            }
+            renderSheetOverlay();
+        }
+
+        function renderSheetOverlay() {
+            if (!state.image || sheetCanvas.hidden) return;
+            sheetContext.clearRect(0, 0, sheetCanvas.width, sheetCanvas.height);
+            sheetContext.imageSmoothingEnabled = false;
+            sheetContext.drawImage(state.image, 0, 0);
+            if (byId("detection-mode").value === "alpha") {
+                for (let index = 0; index < state.components.length; index++) {
+                    const component = state.components[index];
+                    sheetContext.strokeStyle = index === state.frame ? "#c9ef5b" : "rgba(130, 185, 192, .72)";
+                    sheetContext.lineWidth = index === state.frame ? Math.max(2, state.image.naturalWidth / 400) : Math.max(1, state.image.naturalWidth / 800);
+                    sheetContext.strokeRect(component.x + 0.5, component.y + 0.5, component.width - 1, component.height - 1);
+                    if (index === state.frame) drawAnchorMarker(sheetContext, component.centerX + 0.5, component.centerY + 0.5);
+                }
+            } else {
+                const grid = gridSettings();
+                for (let index = 0; index < grid.columns * grid.rows; index++) {
+                    const rect = frameRect(index);
+                    if (rect.x >= sheetCanvas.width || rect.y >= sheetCanvas.height) continue;
+                    sheetContext.strokeStyle = index === state.frame ? "#c9ef5b" : "rgba(130, 185, 192, .62)";
+                    sheetContext.lineWidth = index === state.frame ? Math.max(2, state.image.naturalWidth / 400) : Math.max(1, state.image.naturalWidth / 800);
+                    sheetContext.strokeRect(rect.x + 0.5, rect.y + 0.5, rect.width - 1, rect.height - 1);
+                }
+            }
+        }
+
+        function findAlphaComponents(image, threshold) {
+            const scanCanvas = document.createElement("canvas");
+            scanCanvas.width = image.naturalWidth;
+            scanCanvas.height = image.naturalHeight;
+            const scanContext = scanCanvas.getContext("2d", { willReadFrequently: true });
+            scanContext.drawImage(image, 0, 0);
+            const pixels = scanContext.getImageData(0, 0, scanCanvas.width, scanCanvas.height).data;
+            const parents = [];
+            const ranks = [];
+            const bounds = [];
+            const find = (label) => {
+                let root = label;
+                while (parents[root] !== root) root = parents[root];
+                while (parents[label] !== label) {
+                    const next = parents[label];
+                    parents[label] = root;
+                    label = next;
+                }
+                return root;
+            };
+            const union = (first, second) => {
+                let rootA = find(first);
+                let rootB = find(second);
+                if (rootA === rootB) return rootA;
+                if (ranks[rootA] < ranks[rootB]) [rootA, rootB] = [rootB, rootA];
+                parents[rootB] = rootA;
+                if (ranks[rootA] === ranks[rootB]) ranks[rootA]++;
+                const a = bounds[rootA];
+                const b = bounds[rootB];
+                a.left = Math.min(a.left, b.left);
+                a.right = Math.max(a.right, b.right);
+                a.top = Math.min(a.top, b.top);
+                a.bottom = Math.max(a.bottom, b.bottom);
+                a.area += b.area;
+                bounds[rootB] = null;
+                return rootA;
+            };
+            let previousRuns = [];
+            for (let y = 0; y < scanCanvas.height; y++) {
+                const currentRuns = [];
+                const rowOffset = y * scanCanvas.width * 4;
+                let x = 0;
+                let previousIndex = 0;
+                while (x < scanCanvas.width) {
+                    while (x < scanCanvas.width && pixels[rowOffset + x * 4 + 3] <= threshold) x++;
+                    if (x >= scanCanvas.width) break;
+                    const left = x;
+                    while (x < scanCanvas.width && pixels[rowOffset + x * 4 + 3] > threshold) x++;
+                    const right = x - 1;
+                    const label = parents.length;
+                    parents.push(label);
+                    ranks.push(0);
+                    bounds.push({ left, right, top: y, bottom: y, area: right - left + 1 });
+                    while (previousIndex < previousRuns.length && previousRuns[previousIndex].right < left - 1) previousIndex++;
+                    let connectedLabel = label;
+                    for (let index = previousIndex; index < previousRuns.length && previousRuns[index].left <= right + 1; index++) {
+                        connectedLabel = union(connectedLabel, previousRuns[index].label);
+                    }
+                    currentRuns.push({ left, right, label: connectedLabel });
+                }
+                previousRuns = currentRuns;
+            }
+            return bounds.filter(Boolean).map((item) => ({
+                x: item.left,
+                y: item.top,
+                width: item.right - item.left + 1,
+                height: item.bottom - item.top + 1,
+                area: item.area
+            })).sort((a, b) => a.y - b.y || a.x - b.x);
+        }
+
+        function centerFor(component, mode) {
+            return mode === "bbox"
+                ? { centerX: component.x + (component.width - 1) / 2, centerY: component.y + (component.height - 1) / 2 }
+                : { centerX: component.x + (component.width - 1) / 2, centerY: component.y + component.height - 1 };
+        }
+
+        function mergeNearbyComponents(components, gap) {
+            if (gap <= 0) return components.map((component) => ({ ...component }));
+            const parents = components.map((_, index) => index);
+            const find = (index) => {
+                if (parents[index] !== index) parents[index] = find(parents[index]);
+                return parents[index];
+            };
+            const union = (first, second) => {
+                const rootA = find(first);
+                const rootB = find(second);
+                if (rootA !== rootB) parents[rootB] = rootA;
+            };
+            for (let first = 0; first < components.length; first++) {
+                const a = components[first];
+                for (let second = first + 1; second < components.length; second++) {
+                    const b = components[second];
+                    const horizontalGap = Math.max(0, b.x - (a.x + a.width), a.x - (b.x + b.width));
+                    if (horizontalGap > gap) continue;
+                    const verticalGap = Math.max(0, b.y - (a.y + a.height), a.y - (b.y + b.height));
+                    if (verticalGap <= gap) union(first, second);
+                }
+            }
+            const groups = new Map();
+            components.forEach((component, index) => {
+                const root = find(index);
+                const group = groups.get(root);
+                if (!group) {
+                    groups.set(root, { ...component });
+                    return;
+                }
+                const right = Math.max(group.x + group.width - 1, component.x + component.width - 1);
+                const bottom = Math.max(group.y + group.height - 1, component.y + component.height - 1);
+                group.x = Math.min(group.x, component.x);
+                group.y = Math.min(group.y, component.y);
+                group.width = right - group.x + 1;
+                group.height = bottom - group.y + 1;
+                group.area += component.area;
+            });
+            return [...groups.values()].sort((a, b) => a.y - b.y || a.x - b.x);
+        }
+
+        function renderComponentList() {
+            const select = byId("component-select");
+            select.replaceChildren();
+            state.components.forEach((component, index) => {
+                const option = document.createElement("option");
+                option.value = String(index);
+                option.textContent = `#${index + 1} · ${component.width}×${component.height} · ${component.area}px · ${component.x},${component.y}`;
+                select.append(option);
+            });
+            select.disabled = state.components.length === 0;
+        }
+
+        function applyAreaFilter() {
+            if (!state.image) return;
+            const minimumArea = numberValue("min-area", 1);
+            state.rawComponents = mergeNearbyComponents(state.pixelComponents, numberValue("merge-gap"));
+            state.components = state.rawComponents.filter((item) => item.area >= minimumArea).map((item) => ({
+                ...item,
+                ...centerFor(item, state.centerMode === "manual" ? "bottom" : state.centerMode)
+            }));
+            state.frame = Math.min(state.frame, Math.max(0, state.components.length - 1));
+            renderComponentList();
+            byId("grid-summary").textContent = `${state.components.length} 個透明區段`;
+            const file = state.files[Number(byId("file-select").value)];
+            byId("status").textContent = `${file?.webkitRelativePath || file?.name || "圖片"} · ${state.pixelComponents.length} 個像素區 · ${state.rawComponents.length} 組候選 · ${state.components.length} 個有效區段`;
+            renderSheet();
+        }
+
+        function scanAlphaComponents() {
+            if (!state.image) return;
+            byId("status").textContent = "掃描透明像素…";
+            try {
+                state.pixelComponents = findAlphaComponents(state.image, numberValue("alpha-threshold"));
+                state.centerMode = byId("center-mode").value;
+                applyAreaFilter();
+            } catch (error) {
+                state.rawComponents = [];
+                state.components = [];
+                byId("status").textContent = `像素掃描失敗：${error.message}`;
+                renderComponentList();
+                renderSheet();
+            }
+        }
+
+        function updateDetectionMode() {
+            const alphaMode = byId("detection-mode").value === "alpha";
+            byId("alpha-controls").hidden = !alphaMode;
+            byId("grid-controls").hidden = alphaMode;
+            document.querySelectorAll("[data-grid-only]").forEach((option) => { option.disabled = alphaMode; });
+            if (alphaMode && ["rows", "columns"].includes(byId("direction-layout").value)) byId("direction-layout").value = "blocks";
+            if (state.image) {
+                if (alphaMode) scanAlphaComponents();
+                else renderSheet();
+            }
+        }
+
+        function loadFile(index) {
+            if (!state.files[index]) return;
+            stopAnimation();
+            if (state.objectUrl) URL.revokeObjectURL(state.objectUrl);
+            state.objectUrl = URL.createObjectURL(state.files[index]);
+            const image = new Image();
+            image.onload = () => {
+                state.image = image;
+                state.frame = 0;
+                byId("status").textContent = state.files[index].webkitRelativePath || state.files[index].name;
+                byId("image-size").textContent = `${image.naturalWidth} × ${image.naturalHeight}`;
+                if (byId("detection-mode").value === "alpha") scanAlphaComponents();
+                else renderSheet();
+            };
+            image.onerror = () => { byId("status").textContent = "圖片讀取失敗"; };
+            image.src = state.objectUrl;
+        }
+
+        function addFiles(fileList) {
+            const files = Array.from(fileList).filter((file) => file.type.startsWith("image/") || /\.(png|jpe?g|webp|gif)$/i.test(file.name));
+            if (!files.length) { byId("status").textContent = "沒有可讀取的圖片"; return; }
+            state.files = files;
+            const select = byId("file-select");
+            select.replaceChildren();
+            files.forEach((file, index) => {
+                const option = document.createElement("option");
+                option.value = String(index);
+                option.textContent = file.webkitRelativePath || file.name;
+                select.append(option);
+            });
+            select.disabled = false;
+            select.value = "0";
+            loadFile(0);
+        }
+
+        function guessGrid() {
+            if (!state.image) return;
+            const columns = Math.max(1, Math.min(32, Math.floor(state.image.naturalWidth / 80)));
+            const width = Math.max(1, Math.floor(state.image.naturalWidth / columns));
+            const height = Math.max(1, Math.round(width * 1.13));
+            byId("columns").value = String(columns);
+            byId("cell-width").value = String(width);
+            byId("cell-height").value = String(height);
+            byId("rows").value = String(Math.ceil(state.image.naturalHeight / height));
+            for (const id of ["margin-x", "margin-y", "gap-x", "gap-y"]) byId(id).value = "0";
+            state.frame = 0;
+            renderSheet();
+        }
+
+        function mappedFrame(offset) {
+            const total = totalFrames();
+            if (!total) return 0;
+            const grid = gridSettings();
+            const start = numberValue("start-frame");
+            const frameCount = Math.max(1, numberValue("animation-frames", 1));
+            let layout = byId("direction-layout").value;
+            if (byId("detection-mode").value === "alpha" && ["rows", "columns"].includes(layout)) layout = "blocks";
+            let index = start + offset;
+            if (layout === "rows") index = start + state.direction * grid.columns + offset;
+            if (layout === "columns") index = start + offset * grid.columns + state.direction;
+            if (layout === "blocks") index = start + state.direction * frameCount + offset;
+            return ((index % total) + total) % total;
+        }
+
+        function togglePlayback() {
+            if (state.timer) { stopAnimation(); return; }
+            if (!state.image || !totalFrames()) return;
+            const fps = Math.max(1, Math.min(30, numberValue("fps", 1)));
+            state.animationOffset = 0;
+            byId("play-animation").textContent = "暫停";
+            byId("play-animation").setAttribute("aria-pressed", "true");
+            renderFrame(mappedFrame(state.animationOffset));
+            state.timer = window.setInterval(() => {
+                const maxFrames = Math.max(1, numberValue("animation-frames", 1));
+                state.animationOffset = (state.animationOffset + 1) % maxFrames;
+                renderFrame(mappedFrame(state.animationOffset));
+            }, 1000 / fps);
+        }
+
+        byId("image-files").addEventListener("change", (event) => addFiles(event.currentTarget.files));
+        byId("folder-files").addEventListener("change", (event) => addFiles(event.currentTarget.files));
+        byId("file-select").addEventListener("change", (event) => loadFile(Number(event.currentTarget.value)));
+        for (const id of fields) byId(id).addEventListener("input", () => { stopAnimation(); renderSheet(); });
+        byId("guess-grid").addEventListener("click", guessGrid);
+        byId("detection-mode").addEventListener("change", updateDetectionMode);
+        byId("scan-alpha").addEventListener("click", scanAlphaComponents);
+        byId("alpha-threshold").addEventListener("change", scanAlphaComponents);
+        byId("min-area").addEventListener("input", applyAreaFilter);
+        byId("merge-gap").addEventListener("input", applyAreaFilter);
+        byId("component-select").addEventListener("change", (event) => renderFrame(Number(event.currentTarget.value)));
+        byId("center-mode").addEventListener("change", (event) => {
+            state.centerMode = event.currentTarget.value;
+            if (state.centerMode !== "manual") state.components.forEach((item) => Object.assign(item, centerFor(item, state.centerMode)));
+            if (state.image && state.components.length) renderFrame(state.frame);
+        });
+        byId("reset-center").addEventListener("click", () => {
+            const component = state.components[state.frame];
+            if (!component) return;
+            Object.assign(component, centerFor(component, "bottom"));
+            renderFrame(state.frame);
+        });
+        byId("export-map").addEventListener("click", () => {
+            if (!state.image || !state.components.length) return;
+            const file = state.files[Number(byId("file-select").value)];
+            const payload = {
+                format: "sp-sprite-map-v1",
+                image: { name: file?.webkitRelativePath || file?.name || "", width: state.image.naturalWidth, height: state.image.naturalHeight },
+                detection: { alphaThreshold: numberValue("alpha-threshold"), minimumArea: numberValue("min-area", 1), mergeGap: numberValue("merge-gap"), sort: "top-to-bottom,left-to-right" },
+                directionLayout: byId("direction-layout").value,
+                frames: state.components.map((item, index) => ({ index, x: item.x, y: item.y, width: item.width, height: item.height, area: item.area, centerX: item.centerX, centerY: item.centerY }))
+            };
+            const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }));
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `${(file?.name || "sprite").replace(/\.[^.]+$/, "")}.sprite-map.json`;
+            document.body.append(link);
+            link.click();
+            window.setTimeout(() => { link.remove(); URL.revokeObjectURL(url); }, 1000);
+        });
+        byId("zoom").addEventListener("input", () => {
+            byId("zoom-value").textContent = `${byId("zoom").value}%`;
+            if (state.image) renderSheet();
+        });
+        byId("direction-layout").addEventListener("change", () => { if (state.image) renderFrame(mappedFrame(0)); });
+        byId("start-frame").addEventListener("input", () => { if (state.image) renderFrame(mappedFrame(0)); });
+        byId("animation-frames").addEventListener("input", () => { if (state.image) renderFrame(mappedFrame(0)); });
+        byId("frame-slider").addEventListener("input", (event) => { stopAnimation(); renderFrame(Number(event.currentTarget.value)); });
+        byId("play-animation").addEventListener("click", togglePlayback);
+        byId("previous-frame").addEventListener("click", () => { stopAnimation(); if (state.image) renderFrame((state.frame - 1 + frameTotal()) % frameTotal()); });
+        byId("next-frame").addEventListener("click", () => { stopAnimation(); if (state.image) renderFrame((state.frame + 1) % frameTotal()); });
+        document.querySelectorAll("[data-dir]").forEach((button) => button.addEventListener("click", () => {
+            state.direction = Number(button.dataset.dir);
+            document.querySelectorAll("[data-dir]").forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
+            if (state.image) renderFrame(mappedFrame(0));
+        }));
+        sheetCanvas.addEventListener("click", (event) => {
+            if (!state.image) return;
+            stopAnimation();
+            const bounds = sheetCanvas.getBoundingClientRect();
+            const x = (event.clientX - bounds.left) * sheetCanvas.width / bounds.width;
+            const y = (event.clientY - bounds.top) * sheetCanvas.height / bounds.height;
+            if (byId("detection-mode").value === "alpha") {
+                const matches = state.components.map((component, index) => ({ component, index }))
+                    .filter(({ component }) => x >= component.x && x < component.x + component.width && y >= component.y && y < component.y + component.height)
+                    .sort((a, b) => a.component.area - b.component.area);
+                if (matches.length) renderFrame(matches[0].index);
+                return;
+            }
+            const grid = gridSettings();
+            const relativeX = x - grid.marginX;
+            const relativeY = y - grid.marginY;
+            const pitchX = grid.width + grid.gapX;
+            const pitchY = grid.height + grid.gapY;
+            const column = Math.floor(relativeX / pitchX);
+            const row = Math.floor(relativeY / pitchY);
+            if (column >= 0 && column < grid.columns && row >= 0 && row < grid.rows && relativeX % pitchX < grid.width && relativeY % pitchY < grid.height) renderFrame(row * grid.columns + column);
+        });
+        frameCanvas.addEventListener("click", (event) => {
+            const component = state.components[state.frame];
+            if (byId("detection-mode").value !== "alpha" || state.centerMode !== "manual" || !component) return;
+            const bounds = frameCanvas.getBoundingClientRect();
+            component.centerX = component.x + Math.max(0, Math.min(component.width - 1, Math.floor((event.clientX - bounds.left) * frameCanvas.width / bounds.width)));
+            component.centerY = component.y + Math.max(0, Math.min(component.height - 1, Math.floor((event.clientY - bounds.top) * frameCanvas.height / bounds.height)));
+            renderFrame(state.frame);
+        });
+        byId("sheet-viewport").addEventListener("dragover", (event) => { event.preventDefault(); byId("sheet-viewport").classList.add("drop-active"); });
+        byId("sheet-viewport").addEventListener("dragleave", () => byId("sheet-viewport").classList.remove("drop-active"));
+        byId("sheet-viewport").addEventListener("drop", (event) => { event.preventDefault(); byId("sheet-viewport").classList.remove("drop-active"); addFiles(event.dataTransfer.files); });
+        byId("zoom-value").textContent = `${byId("zoom").value}%`;
+        byId("sheet-canvas").hidden = true;
+    </script>
+</body>
+</html>

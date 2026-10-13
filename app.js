@@ -67,10 +67,19 @@ const bootsSpecialSkillTwoOptions = ["加速魔鞋 6秒 36%", ...armorSpecialSki
 const unavailableArtwork = new Set(["2:fire:wand"]);
 const cardSkillSelections = new Map();
 const characters = [
-    ["Xyrho", "火"], ["Shamoo", "火"], ["Sven", "水"], ["Cream", "水"],
-    ["Roland", "土"], ["Aurelli", "風"], ["Hawk", "風"], ["Hazel", "土"],
-    ["Cara", "火"], ["Warren", "土"], ["Lucy", "水"], ["Will", "風"]
-].map(([name, element], index) => ({ id: index + 1, name, element }));
+    { name: "Xyrho", element: "火", hp: 480, mp: 441, bp: 583, melee: [25, 28], ranged: [11, 12], meleeSpeed: 1.37, rangedSpeed: 2.47, turnSpeed: 4, maxSpeed: 3, acceleration: 2 },
+    { name: "Shamoo", element: "火", hp: 432, mp: 717, bp: 518, melee: [25, 28], ranged: [27, 29], meleeSpeed: 1.5, rangedSpeed: 1.34, turnSpeed: 3, maxSpeed: 5, acceleration: 3 },
+    { name: "Sven", element: "水", hp: 552, mp: 414, bp: 574, melee: [36, 40], ranged: [12, 13], meleeSpeed: 1.25, rangedSpeed: 1.49, turnSpeed: 2, maxSpeed: 1, acceleration: 1 },
+    { name: "Cream", element: "水", hp: 456, mp: 552, bp: 453, melee: [24, 26], ranged: [24, 27], meleeSpeed: 1.25, rangedSpeed: 1.56, turnSpeed: 3, maxSpeed: 4, acceleration: 3 },
+    { name: "Roland", element: "土", hp: 480, mp: 524, bp: 540, melee: [22, 24], ranged: [12, 12], meleeSpeed: 1.28, rangedSpeed: 1.46, turnSpeed: 1, maxSpeed: 2, acceleration: 2 },
+    { name: "Aurelli", element: "風", hp: 456, mp: 414, bp: 496, melee: [22, 24], ranged: [17, 19], meleeSpeed: 2, rangedSpeed: 1.9, turnSpeed: 4, maxSpeed: 3, acceleration: 4 },
+    { name: "Hawk", element: "風", hp: 504, mp: 414, bp: 540, melee: [20, 22], meleeHits: 2, ranged: [20, 22], meleeSpeed: 1.39, rangedSpeed: 2.02, turnSpeed: 3, maxSpeed: 3, acceleration: 2 },
+    { name: "Hazel", element: "土", hp: 432, mp: 524, bp: 626, melee: [20, 22], ranged: [14, 16], meleeSpeed: 1.23, rangedSpeed: 2.67, turnSpeed: 3, maxSpeed: 4, acceleration: 4.5 },
+    { name: "Cara", element: "火", hp: 408, mp: 386, bp: 432, melee: [30, 32], meleeRange: true, ranged: [6, 7], rangedRange: true, meleeSpeed: 1.37, rangedSpeed: 1.57, turnSpeed: 5, maxSpeed: 1, acceleration: 5 },
+    { name: "Warren", element: "土", hp: 564, mp: 483, bp: 432, melee: [40, 43], ranged: [8, 9], meleeSpeed: 1.32, rangedSpeed: 2.48, turnSpeed: 1, maxSpeed: 2, acceleration: 1 },
+    { name: "Lucy", element: "水", hp: 456, mp: 496, bp: 432, melee: [26, 28], ranged: [23, 25], meleeSpeed: 1.47, rangedSpeed: 1.57, turnSpeed: 3, maxSpeed: 2, acceleration: 4 },
+    { name: "Will", element: "風", hp: 396, mp: 601, bp: 561, melee: [32, 35], ranged: [12, 15], meleeSpeed: 1.31, rangedSpeed: 2.43, turnSpeed: 2, maxSpeed: 3, acceleration: 3 }
+].map((character, index) => ({ ...character, id: index + 1 }));
 const comparisonStates = [createComparisonState()];
 const searchInput = document.querySelector("#search-input");
 const elementFilter = document.querySelector("#filter-element");
@@ -87,6 +96,10 @@ const loadStatus = document.querySelector("#load-status");
 const visibleCount = document.querySelector("#visible-count");
 const comparePanel = document.querySelector("#compare-panel");
 const compareToggle = document.querySelector("#toggle-compare");
+const equipmentPickerDialog = document.querySelector("#equipment-picker-dialog");
+const equipmentPickerGrid = equipmentPickerDialog.querySelector(".equipment-picker-grid");
+const equipmentPickerTitle = document.querySelector("#equipment-picker-dialog-title");
+let equipmentPickerAnchor = null;
 const comparePanelActions = document.querySelector("#compare-panel-actions");
 const addComparePanelButton = document.querySelector("#add-compare-panel");
 const clearComparePanelButton = document.querySelector("#clear-compare-panels");
@@ -113,7 +126,13 @@ document.addEventListener("click", (event) => {
     document.querySelectorAll(".resource-select-control.is-open").forEach((control) => {
         if (!control.contains(event.target)) closeResourceSelect(control);
     });
+    if (equipmentPickerDialog.open
+        && !equipmentPickerDialog.contains(event.target)
+        && !equipmentPickerAnchor?.contains(event.target)) closeEquipmentPicker();
 });
+document.querySelector("#close-equipment-picker").addEventListener("click", closeEquipmentPicker);
+window.addEventListener("resize", repositionOpenEquipmentPicker);
+window.addEventListener("scroll", repositionOpenEquipmentPicker, true);
 addComparePanelButton.addEventListener("click", addComparisonPanel);
 clearComparePanelButton.addEventListener("click", clearAdditionalComparisonPanel);
 themeToggle.addEventListener("click", () => {
@@ -139,6 +158,7 @@ skillTwoFilter.addEventListener("change", renderCards);
 equipmentLevel.addEventListener("change", () => {
     updateEffectFilterState();
     renderCards();
+    renderCompareSlots();
 });
 document.querySelector("#admin-entry").addEventListener("click", () => {
     adminDialog.showModal();
@@ -159,13 +179,16 @@ document.querySelector("#open-feedback").addEventListener("click", loadGiscus);
 
 renderEffectFilters();
 initializeComparisonPanel(comparePanel, 0);
+renderCompareSlots();
 setTheme(getSavedTheme());
 selectCharacter(1, 0);
+updateComparePanelActions();
 updateEffectFilterState();
 initializeResourceTextColors();
 
 document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
+        if (equipmentPickerDialog.open) closeEquipmentPicker();
         document.querySelectorAll(".character-picker-menu:not([hidden])").forEach((menu) => closeCharacterPicker(menu.closest(".compare-panel")));
         document.querySelectorAll(".resource-select-control.is-open").forEach(closeResourceSelect);
     }
@@ -295,6 +318,15 @@ function equipmentSlotForCard(card) {
     return card.art_subtype === "magic"
         ? "magic"
         : ["axe", "bow", "sword", "wand"].includes(card.art_subtype) ? "weapon" : "armor";
+}
+
+function characterPortraitArtwork(character) {
+    const portraitId = character.id + 12;
+    return `images_interface_room_char_select_ch_${portraitId}_btn_1_c.png`;
+}
+
+function characterStatsPortraitArtwork(character) {
+    return `images_interface_channel_mychar_wnd_cim_${character.id}.png`;
 }
 
 function createEffectList(card, level = equipmentLevel.value, editable = false) {
@@ -678,7 +710,7 @@ function loadDailyVisitCounter() {
     try {
         if (localStorage.getItem("sp-card-catalog-visit-date") === dateKey) {
             visitCounter.hidden = true;
-            fallback.textContent = "今日已計入 1 次";
+            fallback.textContent = "本瀏覽器今日已計入";
             fallback.hidden = false;
             return;
         }
@@ -996,12 +1028,38 @@ function getSpecialSkillLabels(card) {
 }
 
 function createComparisonState() {
-    return { characterId: 1, locked: false, slots: { magic: null, weapon: null, armor: null } };
+    return {
+        characterId: 1,
+        normalCharacter: false,
+        goblinHp: 120,
+        locked: false,
+        equipmentApplied: { magic: false, weapon: false, armor: false },
+        slots: { magic: null, weapon: null, armor: null }
+    };
 }
 
 function initializeComparisonPanel(panel, comparisonIndex) {
     panel.dataset.comparisonIndex = String(comparisonIndex);
     panel.querySelector(".character-select-button").addEventListener("click", () => toggleCharacterPicker(panel));
+    panel.querySelector(".character-normal-toggle").addEventListener("change", (event) => {
+        comparisonStates[comparisonIndex].normalCharacter = event.currentTarget.checked;
+        renderCharacterOptions(comparisonIndex);
+        renderCharacterPanel(comparisonIndex);
+    });
+    panel.querySelectorAll(".character-equipment-toggle").forEach((button) => {
+        button.addEventListener("click", () => {
+            const state = comparisonStates[comparisonIndex];
+            const slot = button.dataset.slot;
+            if (!state.slots[slot]) return;
+            state.equipmentApplied[slot] = !state.equipmentApplied[slot];
+            renderCharacterPanel(comparisonIndex);
+        });
+    });
+    panel.querySelector(".goblin-hp-input").addEventListener("input", (event) => {
+        const value = Number(event.currentTarget.value);
+        comparisonStates[comparisonIndex].goblinHp = Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
+        renderGoblinSummary(comparisonIndex);
+    });
     panel.querySelector(".compare-lock-toggle").addEventListener("click", (event) => {
         const state = comparisonStates[comparisonIndex];
         state.locked = !state.locked;
@@ -1072,7 +1130,7 @@ function renderCharacterOptions(comparisonIndex) {
         option.setAttribute("aria-label", character.name);
         option.setAttribute("aria-pressed", String(character.id === state.characterId));
         const portrait = document.createElement("img");
-        portrait.src = new URL(`images_interface_room_char_select_ch_${character.id + 12}_btn_1_c.png`, CHARACTER_ART_URL).href;
+        portrait.src = new URL(characterPortraitArtwork(character, state.normalCharacter), CHARACTER_ART_URL).href;
         portrait.alt = "";
         portrait.width = 41;
         portrait.height = 104;
@@ -1090,7 +1148,7 @@ function selectCharacter(characterId, comparisonIndex) {
     const state = comparisonStates[comparisonIndex];
     const panel = document.querySelector(`.compare-panel[data-comparison-index="${comparisonIndex}"]`);
     state.characterId = character.id;
-    panel.querySelector(".selected-character-portrait").src = new URL(`images_interface_room_char_select_ch_${character.id + 12}_btn_1_c.png`, CHARACTER_ART_URL).href;
+    panel.querySelector(".selected-character-portrait").src = new URL(characterPortraitArtwork(character, state.normalCharacter), CHARACTER_ART_URL).href;
     const nameplate = panel.querySelector(".selected-character-name");
     nameplate.textContent = character.name;
     const characterSelectButton = panel.querySelector(".character-select-button");
@@ -1100,6 +1158,7 @@ function selectCharacter(characterId, comparisonIndex) {
     });
     closeCharacterPicker(panel);
     renderCompareActivation(comparisonIndex);
+    renderCharacterPanel(comparisonIndex);
 }
 
 function toggleCharacterPicker(panel) {
@@ -1153,6 +1212,7 @@ function wearCard(card) {
     if (comparisonIndex < 0) return;
     const slot = equipmentSlotForCard(card);
     comparisonStates[comparisonIndex].slots[slot] = { card, level: equipmentLevel.value, isBlack: false };
+    comparisonStates[comparisonIndex].equipmentApplied[slot] = false;
     renderCompareSlots();
     renderCards();
     if (comparePanel.hidden) toggleComparePanel();
@@ -1169,7 +1229,18 @@ function renderCompareSet(comparisonIndex) {
     for (const [slot, selection] of Object.entries(state.slots)) {
         const content = panel.querySelector(`[data-slot="${slot}"] .compare-slot-content`);
         if (!selection) {
-            content.textContent = "尚未穿戴";
+            const openPicker = document.createElement("button");
+            openPicker.className = "compare-empty-open";
+            openPicker.type = "button";
+            openPicker.disabled = state.locked;
+            openPicker.setAttribute("aria-label", `選擇${slot === "magic" ? "魔法" : slot === "weapon" ? "武器" : "防具"}裝備`);
+            const placeholder = document.createElement("img");
+            placeholder.className = "compare-empty-art";
+            placeholder.src = new URL("./images/card_effects/未啟用卡牌位置.png", import.meta.url).href;
+            placeholder.alt = "未穿戴裝備卡";
+            openPicker.append(placeholder);
+            openPicker.addEventListener("click", () => renderEquipmentPicker(comparisonIndex, slot, openPicker));
+            content.replaceChildren(openPicker);
             content.className = "compare-slot-content is-empty";
             continue;
         }
@@ -1201,6 +1272,7 @@ function renderCompareSet(comparisonIndex) {
         removeButton.addEventListener("click", () => {
             if (state.locked) return;
             state.slots[slot] = null;
+            state.equipmentApplied[slot] = false;
             renderCompareSlots();
             renderCards();
         });
@@ -1220,6 +1292,86 @@ function renderCompareSet(comparisonIndex) {
     }
     renderCompareTotals(comparisonIndex);
     renderCompareActivation(comparisonIndex);
+    renderCharacterPanel(comparisonIndex);
+}
+
+function closeEquipmentPicker() {
+    if (equipmentPickerDialog.open) equipmentPickerDialog.close();
+    equipmentPickerAnchor = null;
+    equipmentPickerGrid.replaceChildren();
+}
+
+function positionEquipmentPicker(anchor) {
+    const anchorRect = anchor.getBoundingClientRect();
+    const pickerRect = equipmentPickerDialog.getBoundingClientRect();
+    const edge = 8;
+    const left = Math.min(
+        Math.max(edge, anchorRect.left + (anchorRect.width - pickerRect.width) / 2),
+        Math.max(edge, window.innerWidth - pickerRect.width - edge)
+    );
+    const top = Math.min(
+        Math.max(edge, anchorRect.top + (anchorRect.height - pickerRect.height) / 2),
+        Math.max(edge, window.innerHeight - pickerRect.height - edge)
+    );
+    equipmentPickerDialog.style.left = `${left}px`;
+    equipmentPickerDialog.style.top = `${top}px`;
+}
+
+function repositionOpenEquipmentPicker() {
+    if (equipmentPickerDialog.open && equipmentPickerAnchor) positionEquipmentPicker(equipmentPickerAnchor);
+}
+
+function renderEquipmentPicker(comparisonIndex, slot, anchor) {
+    const panel = document.querySelector(`.compare-panel[data-comparison-index="${comparisonIndex}"]`);
+    const state = comparisonStates[comparisonIndex];
+    if (!panel || !state || state.locked) return;
+
+    equipmentPickerAnchor = anchor;
+    const slotName = slot === "magic" ? "魔法" : slot === "weapon" ? "武器" : "防具";
+    equipmentPickerTitle.textContent = `選擇${slotName}裝備`;
+
+    const subtypeOrder = slot === "magic"
+        ? ["magic"]
+        : slot === "weapon" ? ["axe", "bow", "sword", "wand"] : ["boots", "pendant", "armor", "shield"];
+    const elementOrder = ["水", "火", "土", "風"];
+    const pickerGrid = document.createElement("div");
+    pickerGrid.className = "equipment-picker-grid";
+    const availableCards = cards.filter((card) => equipmentSlotForCard(card) === slot).sort((first, second) => {
+        const elementDifference = elementOrder.indexOf(first.element) - elementOrder.indexOf(second.element);
+        return elementDifference || subtypeOrder.indexOf(first.art_subtype) - subtypeOrder.indexOf(second.art_subtype);
+    });
+    for (const card of availableCards) {
+        const option = document.createElement("button");
+        option.className = "equipment-picker-option";
+        option.type = "button";
+        option.setAttribute("aria-label", `穿戴${card.name_zh || card.name_en || "裝備"}`);
+        option.title = card.name_zh || card.name_en || "裝備";
+        const cardArtwork = document.createElement("div");
+        cardArtwork.className = "card-art equipment-picker-card-art";
+        addArtwork(cardArtwork, card, equipmentLevel.value);
+        option.append(cardArtwork);
+        const thumbnailFilename = artworkFor(card, "s", equipmentLevel.value);
+        if (thumbnailFilename) {
+            const image = document.createElement("img");
+            image.className = "equipment-picker-thumbnail";
+            image.src = new URL(thumbnailFilename, ART_BASE_URL).href;
+            image.alt = "";
+            image.loading = "lazy";
+            image.decoding = "async";
+            option.append(image);
+        }
+        option.addEventListener("click", () => {
+            closeEquipmentPicker();
+            state.slots[slot] = { card, level: equipmentLevel.value, isBlack: false };
+            state.equipmentApplied[slot] = false;
+            renderCompareSlots();
+            renderCards();
+        });
+        pickerGrid.append(option);
+    }
+    equipmentPickerGrid.replaceChildren(...pickerGrid.children);
+    if (!equipmentPickerDialog.open) equipmentPickerDialog.show();
+    positionEquipmentPicker(anchor);
 }
 
 function renderCompareActivation(comparisonIndex) {
@@ -1273,6 +1425,218 @@ function formatPercent(value) {
     return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
 }
 
+function getCardTotalStats(selection) {
+    const baseStats = getStatsForLevel(selection.card, selection.level);
+    const specialStats = getSelectedSpecialStats(selection.card, selection.level);
+    const totals = new Map();
+    for (const source of [baseStats, specialStats]) {
+        if (!source || typeof source !== "object") continue;
+        for (const [key, value] of Object.entries(source)) totals.set(key, (totals.get(key) || 0) + value);
+    }
+    return { baseStats, specialStats, totals };
+}
+
+function formatCharacterNumber(value) {
+    return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
+}
+
+function formatAttackInterval(value) {
+    return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(3)));
+}
+
+function applyAttackDamageModifier(baseDamage, bonusPercent) {
+    if (bonusPercent < 0) return Math.max(0, Math.round(baseDamage * Math.abs(bonusPercent) / 100));
+    return Math.max(0, baseDamage + Math.round(baseDamage * bonusPercent / 100));
+}
+
+function calculateCharacterDamage(character, damageType, comparisonIndex) {
+    const state = comparisonStates[comparisonIndex];
+    const isRange = Boolean(character[`${damageType}Range`]);
+    const baseDamages = isRange
+        ? character[damageType]
+        : [character[damageType][state.normalCharacter ? 0 : 1]];
+    const hits = damageType === "melee" ? character.meleeHits || 1 : 1;
+    const bonusPercent = getAppliedDamageBonusPercent(damageType, comparisonIndex);
+    const bonuses = baseDamages.map((baseDamage) => Math.round(baseDamage * bonusPercent / 100));
+    const values = baseDamages.map((baseDamage) => applyAttackDamageModifier(baseDamage, bonusPercent));
+    return { baseDamages, bonuses, hits, values, bonusPercent };
+}
+
+function getAppliedDamageBonusPercent(damageType, comparisonIndex) {
+    const state = comparisonStates[comparisonIndex];
+    let bonusPercent = 0;
+    for (const slot of ["magic", "weapon", "armor"]) {
+        const selection = state.slots[slot];
+        if (!state.equipmentApplied[slot] || !selection) continue;
+        if (slot === "weapon") {
+            const subtype = selection.card.art_subtype;
+            if (["axe", "sword"].includes(subtype) && damageType !== "melee") continue;
+            if (["bow", "wand"].includes(subtype) && damageType !== "ranged") continue;
+        }
+        const damageModifier = getCardTotalStats(selection).totals.get("attack_damage");
+        if (typeof damageModifier !== "number") continue;
+        if (slot === "armor" && damageModifier < 0) continue;
+        bonusPercent += damageModifier;
+    }
+    return bonusPercent;
+}
+
+function getAppliedCharacterStatBonus(statKey, comparisonIndex, matchesSelection = () => true) {
+    const state = comparisonStates[comparisonIndex];
+    let bonusPercent = 0;
+    for (const slot of ["magic", "weapon", "armor"]) {
+        const selection = state.slots[slot];
+        if (!selection || !state.equipmentApplied[slot] || !matchesSelection(slot, selection)) continue;
+        const bonus = getCardTotalStats(selection).totals.get(statKey);
+        if (typeof bonus === "number") bonusPercent += bonus;
+    }
+    return bonusPercent;
+}
+
+function calculateCharacterAttackInterval(character, damageType, comparisonIndex) {
+    const weaponTypes = damageType === "melee" ? ["axe", "sword"] : ["bow", "wand"];
+    const attackSpeedBonus = getAppliedCharacterStatBonus("attack_speed", comparisonIndex);
+    const attackTimeBonus = getAppliedCharacterStatBonus("attack_time", comparisonIndex,
+        (slot, selection) => slot === "weapon" && weaponTypes.includes(selection.card.art_subtype));
+    const speedMultiplier = Math.max(0.01, 1 + attackSpeedBonus / 100);
+    const timeMultiplier = Math.max(0.01, attackTimeBonus < 0 ? Math.abs(attackTimeBonus) / 100 : 1 + attackTimeBonus / 100);
+    return character[`${damageType}Speed`] * timeMultiplier / speedMultiplier;
+}
+
+function calculateGoblinHitDamage(character, comparisonIndex) {
+    const state = comparisonStates[comparisonIndex];
+    const baseMeleeDamage = character.melee[state.normalCharacter ? 0 : 1];
+    const measuredDamage = state.normalCharacter ? null : ({ 1: 23, 3: 34 }[character.id] ?? null);
+    const baseGoblinDamage = measuredDamage ?? Math.round(baseMeleeDamage * (character.id === 1 ? 0.82 : 0.85));
+    const bonusPercent = getAppliedDamageBonusPercent("melee", comparisonIndex);
+    if (bonusPercent < 0) return Math.max(1, applyAttackDamageModifier(baseGoblinDamage, bonusPercent));
+    const equipmentDamage = Math.round(baseMeleeDamage * bonusPercent / 100 * 0.835);
+    return Math.max(1, baseGoblinDamage + equipmentDamage);
+}
+
+function renderCharacterPanel(comparisonIndex) {
+    const panel = document.querySelector(`.compare-panel[data-comparison-index="${comparisonIndex}"]`);
+    const state = comparisonStates[comparisonIndex];
+    if (!panel || !state) return;
+    const character = characters.find((item) => item.id === state.characterId);
+    if (!character) return;
+
+    panel.querySelector(".character-stats-portrait").src = new URL(
+        characterStatsPortraitArtwork(character), CHARACTER_ART_URL
+    ).href;
+    panel.querySelector(".character-stats-name").textContent = character.name;
+    panel.querySelector(".character-stats-element").textContent = `${character.element}元素`;
+    panel.querySelector(".character-tier-current").textContent = state.normalCharacter ? "普角" : "高角";
+    panel.querySelector(".character-normal-toggle").checked = state.normalCharacter;
+
+    for (const slot of ["magic", "weapon", "armor"]) {
+        const button = panel.querySelector(`.character-equipment-toggle[data-slot="${slot}"]`);
+        const selection = state.slots[slot];
+        button.disabled = !selection;
+        button.classList.toggle("has-card", Boolean(selection));
+        button.setAttribute("aria-pressed", String(Boolean(selection && state.equipmentApplied[slot])));
+        button.setAttribute("aria-label", selection
+            ? `${slot === "magic" ? "魔法" : slot === "weapon" ? "武器" : "防具"}：${selection.card.name_zh || selection.card.name_en}，能力${state.equipmentApplied[slot] ? "已套用" : "未套用"}`
+            : `${slot === "magic" ? "魔法" : slot === "weapon" ? "武器" : "防具"}裝備欄空白`);
+        button.classList.toggle("is-applied", Boolean(selection && state.equipmentApplied[slot]));
+        button.replaceChildren();
+        if (selection) {
+            const filename = artworkFor(selection.card, "s", selection.level);
+            if (filename) {
+                const image = document.createElement("img");
+                image.className = "character-equipment-icon";
+                image.src = new URL(filename, ART_BASE_URL).href;
+                image.alt = "";
+                image.addEventListener("error", () => image.remove(), { once: true });
+                button.append(image);
+            }
+        }
+    }
+
+    const meleeInterval = calculateCharacterAttackInterval(character, "melee", comparisonIndex);
+    const rangedInterval = calculateCharacterAttackInterval(character, "ranged", comparisonIndex);
+    const maxSpeed = Math.min(50, Math.max(0, character.maxSpeed * (1 + getAppliedCharacterStatBonus("max_speed", comparisonIndex) / 100) * 10));
+    const acceleration = Math.min(50, Math.max(0, character.acceleration * (1 + getAppliedCharacterStatBonus("acceleration", comparisonIndex) / 100) * 10));
+    const rows = [
+        { label: "近戰傷害", damageType: "melee", maximum: 90 },
+        { label: "遠程傷害", damageType: "ranged", maximum: 40 },
+        { label: "近戰攻擊間隔", value: meleeInterval, maximum: 3, suffix: "秒/次", format: formatAttackInterval },
+        { label: "遠程攻擊間隔", value: rangedInterval, maximum: 3, suffix: "秒/次", format: formatAttackInterval },
+        { label: "最大速度", value: maxSpeed, maximum: 50, suffix: "/ 50" },
+        { label: "轉向速度", value: Math.min(50, Math.max(0, character.turnSpeed * 10)), maximum: 50, suffix: "/ 50" },
+        { label: "加速度", value: acceleration, maximum: 50, suffix: "/ 50", fullWidth: true },
+        { label: "HP", value: character.hp, maximum: 600, fullWidth: true },
+        { label: "MP", value: character.mp, maximum: 750, fullWidth: true },
+        { label: "BP", value: character.bp, maximum: 700, fullWidth: true }
+    ];
+    const fragment = document.createDocumentFragment();
+    for (const rowData of rows) {
+        const row = document.createElement("div");
+        row.className = "character-stat-row";
+        if (rowData.fullWidth) row.classList.add("is-full-width");
+        const label = document.createElement("span");
+        label.className = "character-stat-label";
+        label.textContent = rowData.label;
+        const value = document.createElement("strong");
+        let meterValue = rowData.value;
+        if (rowData.damageType) {
+            const damage = calculateCharacterDamage(character, rowData.damageType, comparisonIndex);
+            const hitLabel = damage.hits > 1 ? ` ×${damage.hits}` : "";
+            const formatDamageRange = (values) => values.length > 1 && values[0] !== values[1]
+                ? `${formatCharacterNumber(values[0])}–${formatCharacterNumber(values[1])}`
+                : formatCharacterNumber(values[0]);
+            const baseLabel = `${formatDamageRange(damage.baseDamages)}${hitLabel}`;
+            const resultLabel = `${formatDamageRange(damage.values)}${hitLabel}`;
+            const bonusLabel = formatDamageRange(damage.bonuses.map((bonus) => Math.abs(bonus)));
+            if (damage.bonusPercent !== 0) {
+                const exactValues = damage.baseDamages.map((baseDamage) => damage.bonusPercent < 0
+                    ? baseDamage * Math.abs(damage.bonusPercent) / 100
+                    : Math.abs(baseDamage * damage.bonusPercent / 100));
+                value.title = `${baseLabel} × ${formatPercent(Math.abs(damage.bonusPercent))}% = ${formatDamageRange(exactValues)}; 最終傷害採整數`;
+            }
+            value.textContent = damage.bonusPercent === 0
+                ? baseLabel
+                : damage.bonusPercent < 0
+                    ? `${resultLabel} (${baseLabel} × ${formatPercent(Math.abs(damage.bonusPercent))}%)`
+                    : `${resultLabel} (${baseLabel} + ${bonusLabel})`;
+            meterValue = Math.max(...damage.values) * damage.hits;
+        } else {
+            value.textContent = `${(rowData.format || formatCharacterNumber)(rowData.value)}${rowData.suffix || ""}`;
+        }
+        const meter = document.createElement("div");
+        meter.className = "character-stat-meter";
+        meter.setAttribute("role", "meter");
+        meter.setAttribute("aria-label", rowData.label);
+        meter.setAttribute("aria-valuemin", "0");
+        meter.setAttribute("aria-valuemax", String(rowData.maximum));
+        meter.setAttribute("aria-valuenow", String(meterValue));
+        const fill = document.createElement("span");
+        fill.style.width = `${Math.max(0, Math.min(100, meterValue / rowData.maximum * 100))}%`;
+        meter.append(fill);
+        row.append(label, value, meter);
+        fragment.append(row);
+    }
+    panel.querySelector(".character-stat-grid").replaceChildren(fragment);
+    renderGoblinSummary(comparisonIndex);
+}
+
+function renderGoblinSummary(comparisonIndex) {
+    const panel = document.querySelector(`.compare-panel[data-comparison-index="${comparisonIndex}"]`);
+    const state = comparisonStates[comparisonIndex];
+    if (!panel || !state) return;
+    const character = characters.find((item) => item.id === state.characterId);
+    if (!character) return;
+    const hp = Number(state.goblinHp) || 0;
+    panel.querySelector(".goblin-hp-input").value = hp || "";
+    const damage = calculateGoblinHitDamage(character, comparisonIndex);
+    panel.querySelector(".goblin-hit-damage").textContent = String(damage);
+    panel.querySelector(".goblin-hit-count strong").textContent = hp > 0 ? `哥布林 ${Math.ceil(hp / damage)}次` : "哥布林 --次";
+    const meter = panel.querySelector(".goblin-damage-meter");
+    meter.setAttribute("aria-valuemax", String(hp));
+    meter.setAttribute("aria-valuenow", String(Math.min(damage, hp)));
+    panel.querySelector(".goblin-damage-fill").style.width = `${hp > 0 ? Math.min(100, damage / hp * 100) : 0}%`;
+}
+
 function renderCompareTotals(comparisonIndex) {
     const panel = document.querySelector(`.compare-panel[data-comparison-index="${comparisonIndex}"]`);
     const state = comparisonStates[comparisonIndex];
@@ -1284,13 +1648,7 @@ function renderCompareTotals(comparisonIndex) {
             cell.replaceChildren(document.createTextNode("--"));
             continue;
         }
-        const totals = new Map();
-        const baseStats = getStatsForLevel(selection.card, selection.level);
-        const specialStats = getSelectedSpecialStats(selection.card, selection.level);
-        for (const source of [baseStats, specialStats]) {
-            if (!source || typeof source !== "object") continue;
-            for (const [key, value] of Object.entries(source)) totals.set(key, (totals.get(key) || 0) + value);
-        }
+        const { totals, baseStats, specialStats } = getCardTotalStats(selection);
         const fragment = document.createDocumentFragment();
         for (const [key, total] of totals) {
             const item = document.createElement("div");
