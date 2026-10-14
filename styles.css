@@ -285,7 +285,7 @@ button, select { color: inherit; }
 .compare-total-list { min-width: 0; grid-column: 2 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; }
 .compare-summary-empty { color: var(--muted); font-size: 11px; }
 .compare-activation { min-width: 0; grid-column: 1 / 3; grid-row: 2; padding: 1px 0; display: grid; grid-template-columns: 39px repeat(3, minmax(0, 1fr)); align-items: stretch; gap: 1px; background: transparent; border-left: 3px solid var(--coral); }
-.activation-heading { padding-left: 1px; align-self: start; color: var(--ink-soft); font-size: 9px; font-weight: 700; text-align: left; white-space: normal; }
+.activation-heading { padding-left: 1px; align-self: start; color: var(--ink-soft); font-size: 12px; font-weight: 700; text-align: left; white-space: normal; }
 .compare-activation-list { min-width: 0; grid-column: 2 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; }
 .activation-cell, .compare-total-cell { min-width: 0; padding: 1px; display: flex; align-items: center; justify-content: space-between; gap: 1px; background: var(--deep); border: 1px solid var(--line); }
 .activation-cell { min-height: 43px; }

@@ -77,7 +77,6 @@ const armorSpecialSkillOptions = [
     "惡魔之眼 8秒 36%"
 ];
 const bootsSpecialSkillTwoOptions = ["加速魔鞋 6秒 36%", ...armorSpecialSkillOptions];
-const unavailableArtwork = new Set(["2:fire:wand"]);
 const cardSkillSelections = new Map();
 const characters = [
     { name: "Xyrho", element: "火", hp: 480, mp: 441, bp: 583, melee: [25, 28], ranged: [11, 12], meleeSpeed: 1.37, rangedSpeed: 2.47, turnSpeed: 4, maxSpeed: 3, acceleration: 2 },
@@ -704,7 +703,6 @@ function artworkFor(card, size, level = equipmentLevel.value) {
     const element = elementArtwork.find(([label]) => (card.element || "").includes(label));
     if (!element || !card.art_subtype) return "";
     const key = `${level}:${element[1]}:${card.art_subtype}`;
-    if (unavailableArtwork.has(key)) return "";
     return `images_global_card_card_image_gold_black_level${level}_${size}_${element[1]}_${card.art_subtype}.png`;
 }
 
