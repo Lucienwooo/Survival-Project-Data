@@ -1,6 +1,19 @@
 const DATA_URL = new URL("./data/cards.json?v=14", import.meta.url);
 const ART_BASE_URL = new URL("./images/global_card_images/", import.meta.url);
 const CHARACTER_ART_URL = new URL("./images/characters/", import.meta.url);
+const DEFAULT_CARD_RATIOS = { water: 1, fire: 1, earth: 2, wind: 3 };
+const DINGDANG_PRICE = 25;
+const DINGDANG_UNIT = 10000000;
+const EXCHANGE_RATE_URL = "https://open.er-api.com/v6/latest/TWD";
+const EXCHANGE_RATE_CACHE_KEY = "sp-card-exchange-rates-twd";
+const FALLBACK_EXCHANGE_RATES = { TWD: 1, HKD: 0.244163, CNY: 0.2094 };
+const CURRENCIES = {
+    TWD: { label: "台幣", symbol: "NT$" },
+    HKD: { label: "港幣", symbol: "HK$" },
+    CNY: { label: "人民幣", symbol: "¥" }
+};
+let exchangeRates = { ...FALLBACK_EXCHANGE_RATES };
+let exchangeRateUpdatedAt = "";
 const elementArtwork = [
     ["火", "fire"],
     ["水", "water"],
@@ -96,6 +109,13 @@ const loadStatus = document.querySelector("#load-status");
 const visibleCount = document.querySelector("#visible-count");
 const comparePanel = document.querySelector("#compare-panel");
 const compareToggle = document.querySelector("#toggle-compare");
+const currencyToggle = document.querySelector("#toggle-currency");
+const currencyPanel = document.querySelector("#currency-panel");
+const catalogView = document.querySelector("#catalog-view");
+const fireRateCardCount = document.querySelector("#fire-rate-card-count");
+const fireRateAmount = document.querySelector("#fire-rate-amount");
+const fireRateCurrency = document.querySelector("#fire-rate-currency");
+const exchangeRateStatus = document.querySelector("#exchange-rate-status");
 const equipmentPickerDialog = document.querySelector("#equipment-picker-dialog");
 const equipmentPickerGrid = equipmentPickerDialog.querySelector(".equipment-picker-grid");
 const equipmentPickerTitle = document.querySelector("#equipment-picker-dialog-title");
@@ -117,7 +137,13 @@ let cards = [];
 let abilitySort = { key: "", direction: "asc" };
 
 document.querySelector("#reset-filters").addEventListener("click", resetFilters);
-compareToggle.addEventListener("click", toggleComparePanel);
+compareToggle.addEventListener("click", handleCompareToggle);
+currencyToggle.addEventListener("click", toggleCurrencyView);
+document.querySelectorAll("[data-currency-input]").forEach((input) => input.addEventListener("input", updateCurrencyCalculator));
+fireRateCardCount.addEventListener("input", updateCurrencyCalculator);
+fireRateAmount.addEventListener("input", updateCurrencyCalculator);
+fireRateCurrency.addEventListener("change", updateCurrencyCalculator);
+document.querySelectorAll("[data-card-ratio]").forEach((input) => input.addEventListener("input", updateCurrencyCalculator));
 document.addEventListener("click", (event) => {
     document.querySelectorAll(".character-picker-menu:not([hidden])").forEach((menu) => {
         const picker = menu.closest(".character-picker");
@@ -185,6 +211,8 @@ selectCharacter(1, 0);
 updateComparePanelActions();
 updateEffectFilterState();
 initializeResourceTextColors();
+updateCurrencyCalculator();
+loadExchangeRates();
 
 document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
@@ -1205,6 +1233,176 @@ function toggleComparePanel() {
     compareToggle.setAttribute("aria-expanded", String(!isExpanded));
     document.querySelectorAll(".compare-panel").forEach((panel) => { panel.hidden = isExpanded; });
     updateComparePanelActions();
+}
+
+function handleCompareToggle() {
+    if (!currencyPanel.hidden) {
+        currencyPanel.hidden = true;
+        catalogView.hidden = false;
+        currencyToggle.setAttribute("aria-pressed", "false");
+        return;
+    }
+    toggleComparePanel();
+}
+
+function toggleCurrencyView() {
+    const showCurrency = currencyPanel.hidden;
+    currencyPanel.hidden = !showCurrency;
+    catalogView.hidden = showCurrency;
+    currencyToggle.setAttribute("aria-pressed", String(showCurrency));
+}
+
+function calculateCardValue(quantity, card, cardRatios, baseAmount, baseCurrency, targetCurrency, fireCardCount) {
+    const relativePrice = cardRatios[card] / cardRatios.fire;
+    const firePricePerCard = baseAmount / fireCardCount;
+    const valueInBaseCurrency = quantity * firePricePerCard * relativePrice;
+    return valueInBaseCurrency * exchangeRates[targetCurrency] / exchangeRates[baseCurrency];
+}
+
+function renderCurrencyValues(cardElement, valuesByCurrency, baseCurrency) {
+    const orderedCurrencies = [baseCurrency, ...Object.keys(CURRENCIES).filter((currency) => currency !== baseCurrency)];
+    cardElement.querySelector("[data-currency-primary]").textContent = formatCurrency(valuesByCurrency[baseCurrency], baseCurrency);
+    const secondaryRows = cardElement.querySelectorAll("[data-currency-secondary]");
+    orderedCurrencies.slice(1).forEach((currency, index) => {
+        const row = secondaryRows[index];
+        row.querySelector("span").textContent = CURRENCIES[currency].label;
+        row.querySelector("output").textContent = formatCurrency(valuesByCurrency[currency], currency);
+    });
+}
+
+function calculateDingDangValue(quantity, targetCurrency) {
+    return quantity * DINGDANG_PRICE / DINGDANG_UNIT
+        * exchangeRates[targetCurrency] / exchangeRates.HKD;
+}
+
+function calculateTotalValue(cardValues) {
+    return Object.values(cardValues).reduce((total, value) => total + value, 0);
+}
+
+function formatCurrency(value, currency, maximumFractionDigits = 3) {
+    const amount = new Intl.NumberFormat("zh-TW", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits
+    }).format(value);
+    return `${CURRENCIES[currency].symbol}${amount}`;
+}
+
+function isValidExchangeRateData(data) {
+    return data?.result === "success"
+        && data.base_code === "TWD"
+        && Number.isFinite(Number(data.rates?.HKD))
+        && Number(data.rates.HKD) > 0
+        && Number.isFinite(Number(data.rates?.CNY))
+        && Number(data.rates.CNY) > 0;
+}
+
+function applyExchangeRateData(data) {
+    exchangeRates = {
+        TWD: 1,
+        HKD: Number(data.rates.HKD),
+        CNY: Number(data.rates.CNY)
+    };
+    exchangeRateUpdatedAt = data.time_last_update_utc || "";
+}
+
+function formatExchangeRateDate(value) {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? "日期未知" : date.toLocaleDateString("zh-TW");
+}
+
+function loadCachedExchangeRateData() {
+    try {
+        const cached = JSON.parse(localStorage.getItem(EXCHANGE_RATE_CACHE_KEY));
+        return isValidExchangeRateData(cached) ? cached : null;
+    } catch {
+        return null;
+    }
+}
+
+async function loadExchangeRates() {
+    const cached = loadCachedExchangeRateData();
+    if (cached) {
+        applyExchangeRateData(cached);
+        const nextUpdate = Number(cached.time_next_update_unix) * 1000;
+        if (nextUpdate > Date.now()) {
+            exchangeRateStatus.textContent = `匯率更新：${formatExchangeRateDate(exchangeRateUpdatedAt)}（每日更新）`;
+            updateCurrencyCalculator();
+            return;
+        }
+    }
+
+    try {
+        const response = await fetch(EXCHANGE_RATE_URL, { cache: "no-store" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        if (!isValidExchangeRateData(data)) throw new Error("Invalid exchange rate data");
+        applyExchangeRateData(data);
+        localStorage.setItem(EXCHANGE_RATE_CACHE_KEY, JSON.stringify(data));
+        exchangeRateStatus.textContent = `匯率更新：${formatExchangeRateDate(exchangeRateUpdatedAt)}（每日更新）`;
+    } catch (error) {
+        if (cached) {
+            exchangeRateStatus.textContent = `連線失敗，使用快取匯率（${formatExchangeRateDate(exchangeRateUpdatedAt)}）`;
+        } else {
+            exchangeRateStatus.textContent = "匯率服務暫不可用，使用內建參考匯率";
+        }
+        console.warn("Unable to refresh currency exchange rates:", error);
+    }
+    updateCurrencyCalculator();
+}
+
+function updateCurrencyCalculator() {
+    const rawCardCount = Number(fireRateCardCount.value);
+    const fireCardCount = Number.isFinite(rawCardCount) ? Math.max(1, Math.trunc(rawCardCount)) : 1;
+    if (fireRateCardCount.value !== String(fireCardCount)) fireRateCardCount.value = String(fireCardCount);
+    const rawBaseAmount = fireRateAmount.value === "" ? 0 : Number(fireRateAmount.value);
+    const baseAmount = Number.isFinite(rawBaseAmount) ? Math.max(0, rawBaseAmount) : 0;
+    const baseCurrency = fireRateCurrency.value;
+    const cardRatios = Object.fromEntries(Object.keys(DEFAULT_CARD_RATIOS).map((card) => {
+        const input = document.querySelector(`[data-card-ratio="${card}"]`);
+        const rawRatio = input.value === "" ? DEFAULT_CARD_RATIOS[card] : Number(input.value);
+        const ratio = Number.isFinite(rawRatio) ? Math.max(0.01, rawRatio) : DEFAULT_CARD_RATIOS[card];
+        if (input.value !== String(ratio)) input.value = String(ratio);
+        return [card, ratio];
+    }));
+    const cardValues = Object.fromEntries(Object.keys(CURRENCIES).map((currency) => [currency, {}]));
+
+    for (const card of Object.keys(DEFAULT_CARD_RATIOS)) {
+        const input = document.querySelector(`[data-currency-input="${card}"]`);
+        const rawQuantity = input.value === "" ? 0 : Number(input.value);
+        const quantity = Number.isFinite(rawQuantity) ? Math.max(0, Math.trunc(rawQuantity)) : 0;
+        if (input.value !== "" && input.value !== String(quantity)) input.value = String(quantity);
+        const valuesByCurrency = {};
+        for (const currency of Object.keys(CURRENCIES)) {
+            const value = calculateCardValue(quantity, card, cardRatios, baseAmount, baseCurrency, currency, fireCardCount);
+            cardValues[currency][card] = value;
+            valuesByCurrency[currency] = value;
+        }
+        renderCurrencyValues(input.closest(".currency-card"), valuesByCurrency, baseCurrency);
+    }
+
+    const dingdangInput = document.querySelector("#currency-dingdang");
+    const rawDingDangQuantity = dingdangInput.value === "" ? 0 : Number(dingdangInput.value);
+    const dingdangQuantity = Number.isFinite(rawDingDangQuantity) ? Math.max(0, Math.trunc(rawDingDangQuantity)) : 0;
+    if (dingdangInput.value !== "" && dingdangInput.value !== String(dingdangQuantity)) {
+        dingdangInput.value = String(dingdangQuantity);
+    }
+    const dingdangValuesByCurrency = {};
+    for (const currency of Object.keys(CURRENCIES)) {
+        const value = calculateDingDangValue(dingdangQuantity, currency);
+        cardValues[currency].dingdang = value;
+        dingdangValuesByCurrency[currency] = value;
+    }
+    renderCurrencyValues(dingdangInput.closest(".currency-card"), dingdangValuesByCurrency, baseCurrency);
+    const dingdangUnitValues = Object.keys(CURRENCIES).map((currency) => formatCurrency(
+        calculateDingDangValue(DINGDANG_UNIT, currency),
+        currency
+    ));
+    document.querySelector('[data-currency-rate="dingdang"]').textContent = `每 1,000 萬約 ${dingdangUnitValues.join(" · ")}`;
+
+    for (const currency of Object.keys(CURRENCIES)) {
+        const value = calculateTotalValue(Object.values(cardValues[currency]));
+        document.querySelector(`#currency-total-${currency.toLowerCase()}`).textContent = formatCurrency(value, currency, 2);
+    }
 }
 
 function wearCard(card) {
