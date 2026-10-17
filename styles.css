@@ -165,13 +165,17 @@ button, select { color: inherit; }
 .currency-heading h2 { margin: 0; font-size: 28px; }
 .currency-heading > div > p:last-child { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
 .currency-base-rate { margin-bottom: 12px; padding: 13px 15px; display: grid; grid-template-columns: 125px minmax(0, 1fr); align-items: center; gap: 8px 12px; background: var(--surface); border: 1px solid var(--line); border-left: 2px solid var(--blue); }
-.currency-base-rate > label { color: var(--ink); font-size: 12px; font-weight: 700; }
-.currency-base-equation { min-width: 0; display: flex; align-items: center; gap: 8px; color: var(--ink-soft); font-size: 12px; }
-.currency-base-equation input, .currency-base-equation select { min-width: 0; height: 38px; padding: 0 9px; color: var(--ink); background: var(--deep); border: 1px solid var(--line); border-radius: 0; }
-.currency-base-equation input { width: 120px; font-family: "Barlow Condensed", sans-serif; font-size: 17px; }
-.currency-base-equation select { min-width: 140px; font-size: 12px; }
-.currency-base-equation select option { color: var(--ink); background: var(--surface); }
-.currency-base-equation input:focus, .currency-base-equation select:focus { outline: 2px solid var(--blue); outline-offset: 1px; border-color: var(--blue); }
+.currency-market-price-title { color: var(--ink); font-size: 12px; font-weight: 700; }
+.currency-market-price-title small { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; font-weight: 500; }
+.currency-card-price-grid { min-width: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
+.currency-market-price { min-width: 0; padding: 5px 7px; display: flex; align-items: center; gap: 5px; background: var(--deep); border: 1px solid var(--line); }
+.currency-market-price[data-element="water"] { --currency-accent: var(--blue); }
+.currency-market-price[data-element="fire"] { --currency-accent: var(--coral); }
+.currency-market-price[data-element="earth"] { --currency-accent: var(--hp-color); }
+.currency-market-price[data-element="wind"] { --currency-accent: var(--aurora-green); }
+.currency-market-price img { width: 24px; height: 24px; flex: 0 0 24px; object-fit: contain; image-rendering: pixelated; }
+.currency-market-price > span { min-width: 0; color: var(--ink-soft); font-size: 11px; white-space: nowrap; }
+.currency-market-price strong { margin-left: auto; color: var(--currency-accent); font-family: "Barlow Condensed", sans-serif; font-size: 16px; white-space: nowrap; }
 .currency-ratio-settings { grid-column: 1 / -1; padding-top: 9px; display: grid; grid-template-columns: 125px minmax(0, 1fr); align-items: start; gap: 6px 12px; border-top: 1px solid var(--line); }
 .currency-ratio-title { padding-top: 4px; color: var(--ink-soft); font-size: 11px; font-weight: 600; }
 .currency-ratio-grid { display: grid; grid-template-columns: repeat(4, minmax(42px, 60px)); gap: 8px; }
@@ -184,7 +188,8 @@ button, select { color: inherit; }
 .currency-ratio-item img { width: 28px; height: 28px; object-fit: contain; image-rendering: pixelated; }
 .currency-ratio-item input { width: 100%; max-width: 60px; min-width: 0; height: 30px; padding: 0 3px; color: var(--currency-accent); background: var(--deep); border: 1px solid var(--line); border-bottom: 2px solid var(--currency-accent); font-family: "Barlow Condensed", sans-serif; font-size: 16px; font-weight: 700; text-align: center; }
 .currency-ratio-item input:focus { outline: 2px solid var(--currency-accent); outline-offset: 1px; }
-.exchange-rate-meta { grid-column: 2; display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 10px; }
+.currency-formulas-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.exchange-rate-meta { min-width: 0; display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px 14px; color: var(--muted); font-size: 10px; text-align: right; }
 .exchange-rate-meta a { color: var(--blue); text-decoration-color: var(--line); }
 .exchange-rate-meta a:hover { color: var(--ink); }
 .currency-tool { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(230px, 0.8fr); align-items: stretch; gap: 12px; }
@@ -217,7 +222,7 @@ button, select { color: inherit; }
 .currency-total-values output { color: var(--deep); font-family: "Barlow Condensed", sans-serif; font-size: 22px; font-weight: 700; overflow-wrap: anywhere; text-align: right; }
 .currency-total-note { color: var(--deep); font-size: 11px; }
 .currency-formulas { margin-top: 18px; padding: 14px 16px; color: var(--ink-soft); background: var(--surface); border: 1px solid var(--line); }
-.currency-formulas h3 { margin: 0 0 6px; color: var(--ink); font-size: 14px; }
+.currency-formulas h3 { margin: 0; color: var(--ink); font-size: 14px; }
 .currency-formulas p, .currency-formulas ul { margin: 5px 0 0; font-size: 11px; line-height: 1.7; }
 .currency-formulas ul { padding-left: 19px; }
 
@@ -622,13 +627,14 @@ html[data-theme="light"] .footer-visits img { filter: invert(1); }
     .currency-heading { margin-bottom: 15px; align-items: flex-start; flex-direction: column; gap: 9px; }
     .currency-heading h2 { font-size: 23px; }
     .currency-base-rate { grid-template-columns: 1fr; gap: 7px; padding: 11px; }
-    .currency-base-equation { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 6px; }
-    .currency-base-equation input { width: 100%; }
-    .currency-base-equation select { min-width: 0; width: 100%; grid-column: 1 / -1; }
+    .currency-market-price-title small { display: inline; margin-left: 4px; }
+    .currency-card-price-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
+    .currency-market-price { padding: 4px; }
     .currency-ratio-settings { grid-template-columns: 1fr; gap: 5px; }
     .currency-ratio-title { padding-top: 0; }
     .currency-ratio-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
-    .exchange-rate-meta { grid-column: 1; align-items: flex-start; flex-direction: column; }
+    .currency-formulas-header { align-items: flex-start; flex-direction: column; gap: 7px; }
+    .currency-formulas-header .exchange-rate-meta { align-self: flex-end; justify-content: flex-end; text-align: right; }
     .currency-tool { grid-template-columns: 1fr; gap: 8px; }
     .currency-input-grid { grid-template-columns: 1fr; }
     .currency-card { padding: 11px; }

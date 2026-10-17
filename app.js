@@ -1,7 +1,7 @@
 const DATA_URL = new URL("./data/cards.json?v=14", import.meta.url);
 const ART_BASE_URL = new URL("./images/global_card_images/", import.meta.url);
 const CHARACTER_ART_URL = new URL("./images/characters/", import.meta.url);
-const DEFAULT_CARD_RATIOS = { water: 1, fire: 1, earth: 2, wind: 3 };
+const CARD_HKD_PRICE_PER_10K = { water: 35, fire: 35, earth: 20, wind: 15 };
 const DINGDANG_PRICE = 25;
 const DINGDANG_UNIT = 10000000;
 const EXCHANGE_RATE_URL = "https://open.er-api.com/v6/latest/TWD";
@@ -111,9 +111,6 @@ const compareToggle = document.querySelector("#toggle-compare");
 const currencyToggle = document.querySelector("#toggle-currency");
 const currencyPanel = document.querySelector("#currency-panel");
 const catalogView = document.querySelector("#catalog-view");
-const fireRateCardCount = document.querySelector("#fire-rate-card-count");
-const fireRateAmount = document.querySelector("#fire-rate-amount");
-const fireRateCurrency = document.querySelector("#fire-rate-currency");
 const exchangeRateStatus = document.querySelector("#exchange-rate-status");
 const equipmentPickerDialog = document.querySelector("#equipment-picker-dialog");
 const equipmentPickerGrid = equipmentPickerDialog.querySelector(".equipment-picker-grid");
@@ -139,10 +136,6 @@ document.querySelector("#reset-filters").addEventListener("click", resetFilters)
 compareToggle.addEventListener("click", handleCompareToggle);
 currencyToggle.addEventListener("click", toggleCurrencyView);
 document.querySelectorAll("[data-currency-input]").forEach((input) => input.addEventListener("input", updateCurrencyCalculator));
-fireRateCardCount.addEventListener("input", updateCurrencyCalculator);
-fireRateAmount.addEventListener("input", updateCurrencyCalculator);
-fireRateCurrency.addEventListener("change", updateCurrencyCalculator);
-document.querySelectorAll("[data-card-ratio]").forEach((input) => input.addEventListener("input", updateCurrencyCalculator));
 document.addEventListener("click", (event) => {
     document.querySelectorAll(".character-picker-menu:not([hidden])").forEach((menu) => {
         const picker = menu.closest(".character-picker");
@@ -1250,11 +1243,9 @@ function toggleCurrencyView() {
     currencyToggle.setAttribute("aria-pressed", String(showCurrency));
 }
 
-function calculateCardValue(quantity, card, cardRatios, baseAmount, baseCurrency, targetCurrency, fireCardCount) {
-    const relativePrice = cardRatios[card] / cardRatios.fire;
-    const firePricePerCard = baseAmount / fireCardCount;
-    const valueInBaseCurrency = quantity * firePricePerCard * relativePrice;
-    return valueInBaseCurrency * exchangeRates[targetCurrency] / exchangeRates[baseCurrency];
+function calculateCardValue(quantity, card, targetCurrency) {
+    const valueInHkd = quantity * CARD_HKD_PRICE_PER_10K[card] / 10000;
+    return valueInHkd * exchangeRates[targetCurrency] / exchangeRates.HKD;
 }
 
 function renderCurrencyValues(cardElement, valuesByCurrency, baseCurrency) {
@@ -1349,33 +1340,20 @@ async function loadExchangeRates() {
 }
 
 function updateCurrencyCalculator() {
-    const rawCardCount = Number(fireRateCardCount.value);
-    const fireCardCount = Number.isFinite(rawCardCount) ? Math.max(1, Math.trunc(rawCardCount)) : 1;
-    if (fireRateCardCount.value !== String(fireCardCount)) fireRateCardCount.value = String(fireCardCount);
-    const rawBaseAmount = fireRateAmount.value === "" ? 0 : Number(fireRateAmount.value);
-    const baseAmount = Number.isFinite(rawBaseAmount) ? Math.max(0, rawBaseAmount) : 0;
-    const baseCurrency = fireRateCurrency.value;
-    const cardRatios = Object.fromEntries(Object.keys(DEFAULT_CARD_RATIOS).map((card) => {
-        const input = document.querySelector(`[data-card-ratio="${card}"]`);
-        const rawRatio = input.value === "" ? DEFAULT_CARD_RATIOS[card] : Number(input.value);
-        const ratio = Number.isFinite(rawRatio) ? Math.max(0.01, rawRatio) : DEFAULT_CARD_RATIOS[card];
-        if (input.value !== String(ratio)) input.value = String(ratio);
-        return [card, ratio];
-    }));
     const cardValues = Object.fromEntries(Object.keys(CURRENCIES).map((currency) => [currency, {}]));
 
-    for (const card of Object.keys(DEFAULT_CARD_RATIOS)) {
+    for (const card of Object.keys(CARD_HKD_PRICE_PER_10K)) {
         const input = document.querySelector(`[data-currency-input="${card}"]`);
         const rawQuantity = input.value === "" ? 0 : Number(input.value);
         const quantity = Number.isFinite(rawQuantity) ? Math.max(0, Math.trunc(rawQuantity)) : 0;
         if (input.value !== "" && input.value !== String(quantity)) input.value = String(quantity);
         const valuesByCurrency = {};
         for (const currency of Object.keys(CURRENCIES)) {
-            const value = calculateCardValue(quantity, card, cardRatios, baseAmount, baseCurrency, currency, fireCardCount);
+            const value = calculateCardValue(quantity, card, currency);
             cardValues[currency][card] = value;
             valuesByCurrency[currency] = value;
         }
-        renderCurrencyValues(input.closest(".currency-card"), valuesByCurrency, baseCurrency);
+        renderCurrencyValues(input.closest(".currency-card"), valuesByCurrency, "HKD");
     }
 
     const dingdangInput = document.querySelector("#currency-dingdang");
@@ -1390,7 +1368,7 @@ function updateCurrencyCalculator() {
         cardValues[currency].dingdang = value;
         dingdangValuesByCurrency[currency] = value;
     }
-    renderCurrencyValues(dingdangInput.closest(".currency-card"), dingdangValuesByCurrency, baseCurrency);
+    renderCurrencyValues(dingdangInput.closest(".currency-card"), dingdangValuesByCurrency, "HKD");
     const dingdangUnitValues = Object.keys(CURRENCIES).map((currency) => formatCurrency(
         calculateDingDangValue(DINGDANG_UNIT, currency),
         currency

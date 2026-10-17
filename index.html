@@ -9,8 +9,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./styles.css?v=39">
-    <script type="module" src="./app.js?v=46"></script>
+    <link rel="stylesheet" href="./styles.css?v=40">
+    <script type="module" src="./app.js?v=47"></script>
 </head>
 <body>
     <header class="site-header">
@@ -252,45 +252,49 @@
                 <div>
                     <p class="eyebrow">CURRENCY / <span>01</span></p>
                     <h2 id="currency-heading">卡片與叮噹估值</h2>
-                    <p>輸入卡片與叮噹數量，依火卡基準及固定叮噹牌價估算各幣值。</p>
+                    <p>依各卡固定港幣牌價與叮噹牌價估算，再按每日匯率換算台幣及人民幣。</p>
                 </div>
             </div>
-            <section class="currency-base-rate" aria-label="火卡換算基準">
-                <label for="fire-rate-card-count">自訂火卡基準</label>
-                <div class="currency-base-equation">
-                    <input id="fire-rate-card-count" type="number" min="1" step="1" inputmode="numeric" value="10000" aria-label="基準火卡張數">
-                    <span>張火卡 =</span>
-                    <input id="fire-rate-amount" type="number" min="0" step="any" inputmode="decimal" value="35" aria-label="基準貨幣金額">
-                    <select id="fire-rate-currency" aria-label="基準幣別">
-                        <option value="HKD" selected>港幣 (HKD)</option>
-                        <option value="TWD">台幣 (TWD)</option>
-                        <option value="CNY">人民幣 (CNY)</option>
-                    </select>
+            <section class="currency-base-rate" aria-label="卡片港幣牌價與獨立比值">
+                <span class="currency-market-price-title">卡片牌價 <small>HKD / 10,000 張</small></span>
+                <div class="currency-card-price-grid" aria-label="各屬性卡片港幣牌價">
+                    <div class="currency-market-price" data-element="water">
+                        <img src="./images/global_card_images/images_global_card_card_image_white_s_water.png" alt="" width="28" height="28">
+                        <span>水卡</span><strong>HK$35</strong>
+                    </div>
+                    <div class="currency-market-price" data-element="fire">
+                        <img src="./images/global_card_images/images_global_card_card_image_white_s_fire.png" alt="" width="28" height="28">
+                        <span>火卡</span><strong>HK$35</strong>
+                    </div>
+                    <div class="currency-market-price" data-element="earth">
+                        <img src="./images/global_card_images/images_global_card_card_image_white_s_earth.png" alt="" width="28" height="28">
+                        <span>土卡</span><strong>HK$20</strong>
+                    </div>
+                    <div class="currency-market-price" data-element="wind">
+                        <img src="./images/global_card_images/images_global_card_card_image_white_s_wind.png" alt="" width="28" height="28">
+                        <span>風卡</span><strong>HK$15</strong>
+                    </div>
                 </div>
                 <div class="currency-ratio-settings" role="group" aria-label="卡片比值">
-                    <span class="currency-ratio-title">卡片比值（可調整）</span>
+                    <span class="currency-ratio-title">卡片比值 <small>獨立填寫，不參與估值</small></span>
                     <div class="currency-ratio-grid">
                         <div class="currency-ratio-item" data-element="water">
                             <label for="card-ratio-water"><img src="./images/global_card_images/images_global_card_card_image_white_s_water.png" alt="" width="28" height="28"><span>水卡</span></label>
-                            <input id="card-ratio-water" data-card-ratio="water" type="number" min="0.01" step="any" inputmode="decimal" value="1" aria-label="水卡比值">
+                            <input id="card-ratio-water" data-card-ratio="water" type="number" min="0" step="any" inputmode="decimal" value="1" aria-label="水卡比值">
                         </div>
                         <div class="currency-ratio-item" data-element="fire">
                             <label for="card-ratio-fire"><img src="./images/global_card_images/images_global_card_card_image_white_s_fire.png" alt="" width="28" height="28"><span>火卡</span></label>
-                            <input id="card-ratio-fire" data-card-ratio="fire" type="number" min="0.01" step="any" inputmode="decimal" value="1" aria-label="火卡比值">
+                            <input id="card-ratio-fire" data-card-ratio="fire" type="number" min="0" step="any" inputmode="decimal" value="1" aria-label="火卡比值">
                         </div>
                         <div class="currency-ratio-item" data-element="earth">
                             <label for="card-ratio-earth"><img src="./images/global_card_images/images_global_card_card_image_white_s_earth.png" alt="" width="28" height="28"><span>土卡</span></label>
-                            <input id="card-ratio-earth" data-card-ratio="earth" type="number" min="0.01" step="any" inputmode="decimal" value="2" aria-label="土卡比值">
+                            <input id="card-ratio-earth" data-card-ratio="earth" type="number" min="0" step="any" inputmode="decimal" value="2" aria-label="土卡比值">
                         </div>
                         <div class="currency-ratio-item" data-element="wind">
                             <label for="card-ratio-wind"><img src="./images/global_card_images/images_global_card_card_image_white_s_wind.png" alt="" width="28" height="28"><span>風卡</span></label>
-                            <input id="card-ratio-wind" data-card-ratio="wind" type="number" min="0.01" step="any" inputmode="decimal" value="3" aria-label="風卡比值">
+                            <input id="card-ratio-wind" data-card-ratio="wind" type="number" min="0" step="any" inputmode="decimal" value="3" aria-label="風卡比值">
                         </div>
                     </div>
-                </div>
-                <div class="exchange-rate-meta">
-                    <span id="exchange-rate-status" role="status" aria-live="polite">正在載入每日匯率…</span>
-                    <a href="https://www.exchangerate-api.com/" target="_blank" rel="noreferrer">匯率來源：ExchangeRate-API</a>
                 </div>
             </section>
             <div class="currency-tool">
@@ -348,14 +352,20 @@
                 </aside>
             </div>
             <section class="currency-formulas" aria-labelledby="currency-formulas-heading">
-                <h3 id="currency-formulas-heading">換算公式</h3>
-                <p>火卡基準預設為 HK$35／10,000 張；卡片比值預設水：火：土：風 = 1：1：2：3，可在上方調整。</p>
+                <div class="currency-formulas-header">
+                    <h3 id="currency-formulas-heading">換算公式</h3>
+                    <div class="exchange-rate-meta">
+                        <span id="exchange-rate-status" role="status" aria-live="polite">正在載入每日匯率…</span>
+                        <a href="https://www.exchangerate-api.com/" target="_blank" rel="noreferrer">匯率來源：ExchangeRate-API</a>
+                    </div>
+                </div>
+                <p>卡片牌價固定以 HKD／10,000 張計：火 HK$35、水 HK$35、土 HK$20、風 HK$15。上方卡片比值為獨立記錄，不影響估值。</p>
                 <p>叮噹固定牌價：HK$25／10,000,000。</p>
                 <ul>
-                    <li>火卡單張基準價 = 設定金額 ÷ 火卡基準張數</li>
-                    <li>單種卡片基準幣價值 = 持有張數 × 火卡單張基準價 ×（該卡比值 ÷ 火卡比值）</li>
-                    <li>叮噹基準幣價值 = 持有叮噹數 ÷ 10,000,000 × HK$25</li>
-                    <li>換算目標幣別 = 基準幣價值 ×（目標幣別兌台幣匯率 ÷ 基準幣別兌台幣匯率）</li>
+                    <li>卡片港幣估值 = 持有張數 ÷ 10,000 × 該卡 HKD／萬張牌價</li>
+                    <li>叮噹港幣估值 = 持有叮噹數 ÷ 10,000,000 × HK$25</li>
+                    <li>台幣／人民幣估值 = 港幣估值 ×（目標幣別兌台幣匯率 ÷ 港幣兌台幣匯率）</li>
+                    <li>港幣估值 = 港幣基準估值</li>
                     <li>台幣／港幣／人民幣總價 = 水卡 + 火卡 + 土卡 + 風卡 + 叮噹估值</li>
                 </ul>
             </section>
