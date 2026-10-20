@@ -5,7 +5,7 @@ const CARD_HKD_PRICE_PER_10K = { water: 35, fire: 35, earth: 20, wind: 15 };
 const DINGDANG_PRICE = 25;
 const DINGDANG_UNIT = 10000000;
 const SUPPORT_CONFIG = {
-    paypalUsername: "https://www.paypal.com/ncp/payment/EZ3B823665D82",
+    paypalCheckoutUrl: "https://www.paypal.com/ncp/payment/EZ3B823665D82",
     currency: "TWD",
     currencySymbol: "NT$",
     minAmount: 50,
@@ -292,21 +292,30 @@ function initializeSupportPayment() {
             supportSelectedAmount.textContent = `贊助金額：${SUPPORT_CONFIG.currencySymbol}${amount.toLocaleString("zh-TW")}`;
         }
 
-        const username = SUPPORT_CONFIG.paypalUsername.trim();
-        const usernameIsValid = /^[a-zA-Z0-9]{1,20}$/.test(username)
-            && username !== "YOUR_PAYPAL_USERNAME";
-        const configurationError = usernameIsValid
+        let paypalCheckoutUrl = "";
+        try {
+            const parsedCheckoutUrl = new URL(SUPPORT_CONFIG.paypalCheckoutUrl);
+            if (parsedCheckoutUrl.origin === "https://www.paypal.com"
+                && /^\/ncp\/payment\/[a-zA-Z0-9]+$/.test(parsedCheckoutUrl.pathname)
+                && !parsedCheckoutUrl.search
+                && !parsedCheckoutUrl.hash) {
+                paypalCheckoutUrl = parsedCheckoutUrl.href;
+            }
+        } catch {
+            paypalCheckoutUrl = "";
+        }
+        const configurationError = paypalCheckoutUrl
             ? ""
-            : "請先在 app.js 的 SUPPORT_CONFIG 設定 PayPal.Me 名稱。";
+            : "請在 app.js 的 SUPPORT_CONFIG 設定有效的 PayPal 官方付款連結。";
         const canDonate = Number.isSafeInteger(amount)
             && amount >= SUPPORT_CONFIG.minAmount
-            && usernameIsValid;
+            && Boolean(paypalCheckoutUrl);
 
         supportStatus.textContent = amountError || configurationError;
         supportPaypalLink.setAttribute("aria-disabled", String(!canDonate));
         supportPaypalLink.classList.toggle("is-disabled", !canDonate);
         supportPaypalLink.href = canDonate
-            ? `https://paypal.me/${encodeURIComponent(username)}/${amount}${SUPPORT_CONFIG.currency}`
+            ? paypalCheckoutUrl
             : "#";
     }
 
