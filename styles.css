@@ -557,6 +557,21 @@ html[data-theme="light"] .footer-visits img { filter: invert(1); }
 .sponsor-link { min-height: 34px; padding: 7px 10px; display: inline-flex; align-items: center; border: 1px solid var(--line); font-size: 11px; }
 .sponsor-qr-section { margin-top: 15px; }
 .sponsor-qr { width: min(192px, 65vw); height: auto; margin: 12px auto 0; padding: 6px; display: block; background: #fff; }
+.support-section { margin-top: 15px; }
+.support-amount-options { margin-top: 12px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.support-amount-btn { min-width: 0; min-height: 40px; padding: 7px 8px; color: var(--ink); background: var(--deep); border: 1px solid var(--line); cursor: pointer; font-size: 12px; font-weight: 600; transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease; }
+.support-amount-btn:hover { border-color: var(--acid); }
+.support-amount-btn[aria-pressed="true"] { color: var(--deep); background: var(--acid); border-color: var(--acid); }
+.support-amount-btn:focus-visible, .support-custom-input:focus-visible, .support-paypal-btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.support-custom-field { margin-top: 10px; display: grid; gap: 5px; color: var(--ink-soft); font-size: 11px; }
+.support-custom-field[hidden] { display: none; }
+.support-custom-input { width: 100%; min-width: 0; min-height: 40px; padding: 0 10px; color: var(--ink); background: var(--deep); border: 1px solid var(--line); font-size: 14px; }
+.support-selected-amount { margin-top: 12px !important; color: var(--ink) !important; font-size: 13px !important; font-weight: 700; }
+.sponsor-dialog .support-paypal-btn { min-height: 42px; margin-top: 8px; padding: 10px 14px; display: flex; align-items: center; justify-content: center; color: var(--deep); background: var(--acid); border: 1px solid var(--acid); font-size: 12px; font-weight: 700; text-align: center; text-decoration: none; transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease; }
+.sponsor-dialog .support-paypal-btn:hover:not([aria-disabled="true"]) { color: var(--ink); background: var(--surface-raised); border-color: var(--acid); }
+.sponsor-dialog .support-paypal-btn.is-disabled { opacity: 0.52; cursor: not-allowed; }
+.support-status { min-height: 16px; margin-top: 7px !important; color: var(--coral) !important; font-size: 10px !important; }
+.support-note { margin-top: 8px !important; color: var(--muted) !important; font-size: 10px !important; }
 .sponsor-signature { margin: 14px 0 0; color: var(--muted); font-family: "Barlow Condensed", sans-serif; font-size: 11px; text-align: right; }
 .admin-dialog { width: min(360px, calc(100vw - 32px)); padding: 0; color: var(--ink); background: var(--surface); border: 1px solid var(--line); box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5); }
 .admin-dialog::backdrop { background: rgba(10, 17, 12, 0.72); backdrop-filter: blur(3px); }
@@ -663,6 +678,8 @@ html[data-theme="light"] .footer-visits img { filter: invert(1); }
     .site-footer > span:first-child, .footer-access { justify-self: center; }
     .footer-visits { min-height: 18px; }
     .footer-visits img { height: 16px; }
+    .support-amount-options { grid-template-columns: 1fr; gap: 6px; }
+    .support-amount-btn { min-height: 42px; }
     .effect-filter-options { max-height: 220px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .compare-panel { width: 100%; padding: 1px; grid-template-columns: 42px minmax(0, 1fr); gap: 1px; }
     .compare-panel-heading h2 { font-size: 15px; }

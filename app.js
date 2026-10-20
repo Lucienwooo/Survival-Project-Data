@@ -4,6 +4,14 @@ const CHARACTER_ART_URL = new URL("./images/characters/", import.meta.url);
 const CARD_HKD_PRICE_PER_10K = { water: 35, fire: 35, earth: 20, wind: 15 };
 const DINGDANG_PRICE = 25;
 const DINGDANG_UNIT = 10000000;
+const SUPPORT_CONFIG = {
+    paypalUsername: "https://www.paypal.com/ncp/payment/EZ3B823665D82",
+    currency: "TWD",
+    currencySymbol: "NT$",
+    minAmount: 50,
+    presetAmounts: [50, 100],
+    defaultAmount: 50
+};
 const EXCHANGE_RATE_URL = "https://open.er-api.com/v6/latest/TWD";
 const EXCHANGE_RATE_CACHE_KEY = "sp-card-exchange-rates-twd";
 const FALLBACK_EXCHANGE_RATES = { TWD: 1, HKD: 0.244163, CNY: 0.2094 };
@@ -158,8 +166,16 @@ themeToggle.addEventListener("click", () => {
     setTheme(nextTheme, true);
 });
 const sponsorDialog = document.querySelector("#sponsor-dialog");
+const supportAmountOptions = document.querySelector("#support-amount-options");
+const supportCustomButton = document.querySelector("#support-custom-button");
+const supportCustomField = document.querySelector("#support-custom-field");
+const supportCustomInput = document.querySelector("#support-custom-amount");
+const supportSelectedAmount = document.querySelector("#support-selected-amount");
+const supportStatus = document.querySelector("#support-status");
+const supportPaypalLink = document.querySelector("#support-paypal-link");
 document.querySelector("#open-sponsor").addEventListener("click", () => sponsorDialog.showModal());
 document.querySelector("#close-sponsor").addEventListener("click", () => sponsorDialog.close());
+initializeSupportPayment();
 const visitCounter = document.querySelector("#visit-counter");
 visitCounter.addEventListener("error", () => {
     visitCounter.hidden = true;
@@ -224,6 +240,96 @@ sponsorDialog.addEventListener("click", (event) => {
 
 loadCatalog();
 initializeGiscus();
+
+function initializeSupportPayment() {
+    const presetButtons = SUPPORT_CONFIG.presetAmounts.map((amount) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "support-amount-btn";
+        button.textContent = `${SUPPORT_CONFIG.currencySymbol}${amount}`;
+        button.setAttribute("aria-pressed", "false");
+        button.addEventListener("click", () => selectSupportAmount(button));
+        supportAmountOptions.insertBefore(button, supportCustomButton);
+        return button;
+    });
+    let selectedPreset = null;
+    let useCustomAmount = false;
+
+    function selectSupportAmount(button, custom = false) {
+        selectedPreset = custom ? null : button;
+        useCustomAmount = custom;
+        [...presetButtons, supportCustomButton].forEach((option) => {
+            option.setAttribute("aria-pressed", String(option === button));
+        });
+        supportCustomField.hidden = !custom;
+        supportCustomInput.setAttribute("aria-required", String(custom));
+        if (custom) supportCustomInput.focus();
+        updateSupportPaymentState();
+    }
+
+    function updateSupportPaymentState(showInputError = false) {
+        let amount = selectedPreset
+            ? SUPPORT_CONFIG.presetAmounts[presetButtons.indexOf(selectedPreset)]
+            : null;
+        let amountError = "";
+
+        if (useCustomAmount) {
+            const rawAmount = supportCustomInput.value.trim();
+            if (!rawAmount) {
+                amountError = showInputError ? "請輸入贊助金額" : "";
+            } else if (!/^-?\d+$/.test(rawAmount)) {
+                amountError = `請輸入整數金額（最低 ${SUPPORT_CONFIG.currencySymbol}${SUPPORT_CONFIG.minAmount}）`;
+            } else {
+                amount = Number(rawAmount);
+                if (!Number.isSafeInteger(amount) || amount < SUPPORT_CONFIG.minAmount) {
+                    amountError = `最低贊助金額為 ${SUPPORT_CONFIG.currencySymbol}${SUPPORT_CONFIG.minAmount}`;
+                }
+            }
+            supportSelectedAmount.textContent = Number.isSafeInteger(amount)
+                ? `贊助金額：${SUPPORT_CONFIG.currencySymbol}${amount.toLocaleString("zh-TW")}`
+                : "贊助金額：尚未輸入";
+        } else {
+            supportSelectedAmount.textContent = `贊助金額：${SUPPORT_CONFIG.currencySymbol}${amount.toLocaleString("zh-TW")}`;
+        }
+
+        const username = SUPPORT_CONFIG.paypalUsername.trim();
+        const usernameIsValid = /^[a-zA-Z0-9]{1,20}$/.test(username)
+            && username !== "YOUR_PAYPAL_USERNAME";
+        const configurationError = usernameIsValid
+            ? ""
+            : "請先在 app.js 的 SUPPORT_CONFIG 設定 PayPal.Me 名稱。";
+        const canDonate = Number.isSafeInteger(amount)
+            && amount >= SUPPORT_CONFIG.minAmount
+            && usernameIsValid;
+
+        supportStatus.textContent = amountError || configurationError;
+        supportPaypalLink.setAttribute("aria-disabled", String(!canDonate));
+        supportPaypalLink.classList.toggle("is-disabled", !canDonate);
+        supportPaypalLink.href = canDonate
+            ? `https://paypal.me/${encodeURIComponent(username)}/${amount}${SUPPORT_CONFIG.currency}`
+            : "#";
+    }
+
+    const defaultButton = presetButtons[SUPPORT_CONFIG.presetAmounts.indexOf(SUPPORT_CONFIG.defaultAmount)];
+    if (defaultButton) selectSupportAmount(defaultButton);
+    supportCustomButton.addEventListener("click", () => selectSupportAmount(supportCustomButton, true));
+    supportCustomInput.addEventListener("beforeinput", (event) => {
+        if (event.inputType.startsWith("insert") && event.data && /\D/.test(event.data)) {
+            event.preventDefault();
+        }
+    });
+    supportCustomInput.addEventListener("paste", (event) => {
+        const pastedText = event.clipboardData.getData("text");
+        if (!/^\d+$/.test(pastedText)) event.preventDefault();
+    });
+    supportCustomInput.addEventListener("input", () => updateSupportPaymentState(true));
+    supportPaypalLink.addEventListener("click", (event) => {
+        if (supportPaypalLink.getAttribute("aria-disabled") === "true") {
+            event.preventDefault();
+            updateSupportPaymentState(true);
+        }
+    });
+}
 
 async function loadCatalog() {
     try {

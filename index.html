@@ -9,8 +9,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./styles.css?v=40">
-    <script type="module" src="./app.js?v=47"></script>
+    <link rel="stylesheet" href="./styles.css?v=42">
+    <script type="module" src="./app.js?v=50"></script>
 </head>
 <body>
     <header class="site-header">
@@ -409,6 +409,21 @@
                 <h3>若不嫌棄，請我喝飲料</h3>
                 <p>贊助 QR code（支援 Line Pay / PayPal / Apple Pay / Google Pay）</p>
                 <img class="sponsor-qr" src="./images/mimic-sponsor-qr.png" alt="贊助付款 QR code" width="512" height="512">
+            </section>
+            <section class="sponsor-section support-section" aria-labelledby="support-heading">
+                <h3 id="support-heading">支持 Survival Project Data</h3>
+                <p>如果這個網站對你有幫助，歡迎請我喝杯咖啡 &#9749;</p>
+                <div id="support-amount-options" class="support-amount-options" role="group" aria-label="選擇贊助金額">
+                    <button id="support-custom-button" class="support-amount-btn" type="button" aria-controls="support-custom-field" aria-pressed="false">自訂金額</button>
+                </div>
+                <label id="support-custom-field" class="support-custom-field" for="support-custom-amount" hidden>
+                    <span>自訂金額（新台幣）</span>
+                    <input id="support-custom-amount" class="support-custom-input" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="輸入金額" autocomplete="off" aria-describedby="support-status">
+                </label>
+                <p id="support-selected-amount" class="support-selected-amount" aria-live="polite">贊助金額：NT$50</p>
+                <a id="support-paypal-link" class="support-paypal-btn is-disabled" href="#" target="_blank" rel="noopener noreferrer" aria-disabled="true">使用 PayPal 贊助</a>
+                <p id="support-status" class="support-status" role="status" aria-live="polite">請先在 app.js 的 SUPPORT_CONFIG 設定 PayPal.Me 名稱。</p>
+                <p class="support-note">付款頁將以新台幣（TWD）預填金額；付款前請確認金額與收款人。贊助完全自願。</p>
             </section>
             <p class="sponsor-signature">By Lucienwooo</p>
         </div>
