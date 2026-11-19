@@ -1,9 +1,12 @@
-const DATA_URL = new URL("./data/cards.json?v=14", import.meta.url);
+// 1989/06/04
+const DATA_URL = new URL("https://lucienwooo.github.io/Survival-Project-Data/data/cards.json", import.meta.url);
+const LOCAL_BACKUP_DATA_URL = new URL("./data/cards.local-backup.json", import.meta.url);
 const ART_BASE_URL = new URL("./images/global_card_images/", import.meta.url);
 const CHARACTER_ART_URL = new URL("./images/characters/", import.meta.url);
 const CARD_HKD_PRICE_PER_10K = { water: 35, fire: 35, earth: 20, wind: 15 };
 const DINGDANG_PRICE = 25;
 const DINGDANG_UNIT = 10000000;
+const MAGIC_DAMAGE_BASE = 92;
 const SUPPORT_CONFIG = {
     paypalCheckoutUrl: "https://www.paypal.com/ncp/payment/EZ3B823665D82",
     currency: "TWD",
@@ -22,6 +25,7 @@ const CURRENCIES = {
 };
 let exchangeRates = { ...FALLBACK_EXCHANGE_RATES };
 let exchangeRateUpdatedAt = "";
+let characterStatMaximumsCache = null;
 const elementArtwork = [
     ["火", "fire"],
     ["水", "water"],
@@ -116,6 +120,8 @@ const loadStatus = document.querySelector("#load-status");
 const visibleCount = document.querySelector("#visible-count");
 const comparePanel = document.querySelector("#compare-panel");
 const compareToggle = document.querySelector("#toggle-compare");
+const simulatorToggle = document.querySelector("#toggle-enhancement-simulator");
+const simulatorPanel = document.querySelector("#enhancement-simulator-panel");
 const currencyToggle = document.querySelector("#toggle-currency");
 const currencyPanel = document.querySelector("#currency-panel");
 const catalogView = document.querySelector("#catalog-view");
@@ -142,8 +148,15 @@ let abilitySort = { key: "", direction: "asc" };
 
 document.querySelector("#reset-filters").addEventListener("click", resetFilters);
 compareToggle.addEventListener("click", handleCompareToggle);
+simulatorToggle.addEventListener("click", () => {
+    const showSimulator = simulatorPanel.hidden;
+    simulatorPanel.hidden = !showSimulator;
+    simulatorToggle.setAttribute("aria-expanded", String(showSimulator));
+});
 currencyToggle.addEventListener("click", toggleCurrencyView);
 document.querySelectorAll("[data-currency-input]").forEach((input) => input.addEventListener("input", updateCurrencyCalculator));
+// 1989/06/04
+document.addEventListener("contextmenu", (event) => event.preventDefault());
 document.addEventListener("click", (event) => {
     document.querySelectorAll(".character-picker-menu:not([hidden])").forEach((menu) => {
         const picker = menu.closest(".character-picker");
@@ -177,13 +190,14 @@ document.querySelector("#open-sponsor").addEventListener("click", () => sponsorD
 document.querySelector("#close-sponsor").addEventListener("click", () => sponsorDialog.close());
 initializeSupportPayment();
 const visitCounter = document.querySelector("#visit-counter");
+const visitCounterFallback = document.querySelector("#visit-counter-fallback");
 visitCounter.addEventListener("error", () => {
     visitCounter.hidden = true;
-    const fallback = document.querySelector("#visit-counter-fallback");
-    fallback.textContent = "今日計數暫不可用";
-    fallback.hidden = false;
+    visitCounterFallback.textContent = "造訪統計暫不可用";
+    visitCounterFallback.hidden = false;
 }, { once: true });
-loadDailyVisitCounter();
+visitCounter.addEventListener("load", () => { visitCounterFallback.hidden = true; }, { once: true });
+loadVisitCounter();
 searchInput.addEventListener("input", renderCards);
 elementFilter.addEventListener("change", renderCards);
 categoryFilter.addEventListener("change", renderCards);
@@ -216,6 +230,7 @@ initializeComparisonPanel(comparePanel, 0);
 renderCompareSlots();
 setTheme(getSavedTheme());
 selectCharacter(1, 0);
+initializeEnhancementCharacterPreview();
 updateComparePanelActions();
 updateEffectFilterState();
 initializeResourceTextColors();
@@ -342,19 +357,35 @@ function initializeSupportPayment() {
 
 async function loadCatalog() {
     try {
-        const response = await fetch(DATA_URL);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-        const catalog = await response.json();
+        let catalog;
+        let usingLocalBackup = false;
+        try {
+            const response = await fetch(DATA_URL, { cache: "no-cache" });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            catalog = await response.json();
+        } catch (error) {
+            console.warn("Unable to load the published catalog; trying the local backup.", error);
+            const backupResponse = await fetch(LOCAL_BACKUP_DATA_URL, { cache: "no-cache" });
+            if (!backupResponse.ok) throw new Error(`Local backup returned HTTP ${backupResponse.status}`);
+            catalog = await backupResponse.json();
+            usingLocalBackup = true;
+        }
         cards = Object.values(catalog).filter((card) => card && card.id !== undefined && card.art_subtype);
         applySavedCardEdits();
         cards.sort((first, second) => Number(first.id) - Number(second.id));
+        characterStatMaximumsCache = null;
         elementFilter.value = "";
 
         document.querySelector("#stat-total").textContent = cards.length;
         renderSpecialSkillFilters();
-        loadStatus.hidden = true;
+        if (usingLocalBackup) {
+            loadStatus.textContent = "正式資料暫時無法取得，顯示本機備份資料。";
+            loadStatus.hidden = false;
+        } else {
+            loadStatus.hidden = true;
+        }
         renderCards();
+        renderCompareSlots();
     } catch (error) {
         loadStatus.dataset.state = "error";
         loadStatus.textContent = "卡片資料載入失敗。請透過本機網站伺服器或 GitHub Pages 開啟此頁。";
@@ -837,33 +868,8 @@ function resetFilters() {
     searchInput.focus();
 }
 
-function loadDailyVisitCounter() {
-    const fallback = document.querySelector("#visit-counter-fallback");
-    const today = new Date();
-    const dateKey = [today.getFullYear(), String(today.getMonth() + 1).padStart(2, "0"), String(today.getDate()).padStart(2, "0")].join("-");
-    try {
-        if (localStorage.getItem("sp-card-catalog-visit-date") === dateKey) {
-            visitCounter.hidden = true;
-            fallback.textContent = "本瀏覽器今日已計入";
-            fallback.hidden = false;
-            return;
-        }
-    } catch {
-        visitCounter.hidden = true;
-        fallback.textContent = "--";
-        fallback.hidden = false;
-        return;
-    }
-    visitCounter.addEventListener("load", () => {
-        try {
-            localStorage.setItem("sp-card-catalog-visit-date", dateKey);
-        } catch {
-            return;
-        }
-    }, { once: true });
-    const url = new URL(visitCounter.dataset.src);
-    url.searchParams.set("view", "today-total");
-    visitCounter.src = url.href;
+function loadVisitCounter() {
+    visitCounter.src = visitCounter.dataset.src;
 }
 
 function initializeGiscus() {
@@ -975,6 +981,7 @@ function readCardEditor(card, article) {
     card.special_stats = parsedSpecial.values;
     card.special_skills = parsedSpecial.custom;
     card._text_overrides = { stats: parsedStats.custom, special: linesByGroup.special };
+    characterStatMaximumsCache = null;
     return true;
 }
 
@@ -1087,6 +1094,7 @@ async function importCardData(file) {
                 _text_overrides: source._text_overrides && typeof source._text_overrides === "object" && !Array.isArray(source._text_overrides) ? source._text_overrides : null
             };
         });
+        characterStatMaximumsCache = null;
         persistCardEdits();
         renderSpecialSkillFilters();
         renderCards();
@@ -1165,7 +1173,9 @@ function createComparisonState() {
     return {
         characterId: 1,
         normalCharacter: false,
-        goblinHp: 120,
+        goblinDamageType: "melee",
+        beginnerGoblinHp: 125,
+        heroGoblinHp: 165,
         locked: false,
         equipmentApplied: { magic: false, weapon: false, armor: false },
         slots: { magic: null, weapon: null, armor: null }
@@ -1189,9 +1199,17 @@ function initializeComparisonPanel(panel, comparisonIndex) {
             renderCharacterPanel(comparisonIndex);
         });
     });
-    panel.querySelector(".goblin-hp-input").addEventListener("input", (event) => {
-        const value = Number(event.currentTarget.value);
-        comparisonStates[comparisonIndex].goblinHp = Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
+    panel.querySelectorAll(".goblin-hp-input").forEach((input) => {
+        input.addEventListener("input", (event) => {
+            const value = Number(event.currentTarget.value);
+            const goblinType = event.currentTarget.dataset.goblinType;
+            comparisonStates[comparisonIndex][`${goblinType}GoblinHp`] = Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
+            renderGoblinSummary(comparisonIndex);
+        });
+    });
+    panel.querySelector(".goblin-damage-mode-toggle").addEventListener("click", () => {
+        const state = comparisonStates[comparisonIndex];
+        state.goblinDamageType = state.goblinDamageType === "ranged" ? "melee" : "ranged";
         renderGoblinSummary(comparisonIndex);
     });
     panel.querySelector(".compare-lock-toggle").addEventListener("click", (event) => {
@@ -1339,6 +1357,423 @@ function toggleComparePanel() {
     compareToggle.setAttribute("aria-expanded", String(!isExpanded));
     document.querySelectorAll(".compare-panel").forEach((panel) => { panel.hidden = isExpanded; });
     updateComparePanelActions();
+}
+
+async function initializeEnhancementCharacterPreview() {
+    const panel = document.querySelector("#enhancement-simulator-panel");
+    const canvas = document.querySelector("#enhancement-character-preview");
+    const status = document.querySelector("#enhancement-character-preview-status");
+    const roster = document.querySelector("#character-preview-roster");
+    const rosterCount = document.querySelector("#character-preview-roster-count");
+    const directionPad = document.querySelector(".character-preview-direction-pad");
+    const characterTierToggle = document.querySelector("#character-preview-tier-toggle");
+    const alternateColorToggle = document.querySelector("#character-preview-alternate-toggle");
+    if (!panel || !canvas || !status || !roster || !rosterCount || !directionPad || !characterTierToggle || !alternateColorToggle) {
+        console.error("Unable to initialize the character preview: required elements are missing.");
+        return;
+    }
+
+    const context = canvas.getContext("2d");
+    if (!context) {
+        status.textContent = "無法建立角色預覽畫布";
+        console.error("Unable to create the character preview canvas context.");
+        return;
+    }
+
+    const directionLabels = {
+        right: "右",
+        upRight: "右上",
+        up: "上",
+        upLeft: "左上",
+        left: "左",
+        downLeft: "左下",
+        down: "下",
+        downRight: "右下"
+    };
+    const keyToInput = new Map([
+        ["ArrowUp", "up"], ["ArrowDown", "down"], ["ArrowLeft", "left"], ["ArrowRight", "right"],
+        ["KeyW", "up"], ["KeyS", "down"], ["KeyA", "left"], ["KeyD", "right"]
+    ]);
+    const pressedInputs = new Set();
+    const thumbnailButtons = new Map();
+    let sprites = [];
+    let baseSprites = [];
+    let spritesById = new Map();
+    let activeSprite = null;
+    let activeSheet = null;
+    let selectedBaseSprite = null;
+    let alternateColorEnabled = false;
+    let activeScale = 1;
+    let currentDirection = "down";
+    let currentPosition = { x: canvas.width / 2, y: canvas.height * 0.72 };
+    let animationFrameId = null;
+    let previousTimestamp = 0;
+    let selectionRequest = 0;
+
+    const toggleButton = document.querySelector("#toggle-enhancement-simulator");
+    if (!toggleButton) {
+        console.error("Unable to focus the character preview: toggle button is missing.");
+        return;
+    }
+    toggleButton.addEventListener("click", () => {
+        if (!panel.hidden) canvas.focus();
+    });
+
+    const getMovementVector = () => {
+        const horizontal = (pressedInputs.has("right") ? 1 : 0) - (pressedInputs.has("left") ? 1 : 0);
+        const vertical = (pressedInputs.has("down") ? 1 : 0) - (pressedInputs.has("up") ? 1 : 0);
+        const magnitude = Math.hypot(horizontal, vertical);
+        return magnitude ? { x: horizontal / magnitude, y: vertical / magnitude } : null;
+    };
+
+    const directionFromVector = (vector) => {
+        if (vector.y < 0) return vector.x < 0 ? "upLeft" : vector.x > 0 ? "upRight" : "up";
+        if (vector.y > 0) return vector.x < 0 ? "downLeft" : vector.x > 0 ? "downRight" : "down";
+        return vector.x < 0 ? "left" : "right";
+    };
+
+    const updateStatus = (moving) => {
+        if (!activeSprite) return;
+        const nextStatus = `${activeSprite.label}｜${moving ? "移動中" : "待機中"}｜朝${directionLabels[currentDirection]}`;
+        if (status.textContent !== nextStatus) status.textContent = nextStatus;
+    };
+
+    const clearPressedInputs = () => {
+        pressedInputs.clear();
+        directionPad.querySelectorAll(".is-pressed").forEach((button) => button.classList.remove("is-pressed"));
+    };
+
+    const loadImage = (source) => new Promise((resolve, reject) => {
+        const image = new Image();
+        image.addEventListener("load", () => resolve(image), { once: true });
+        image.addEventListener("error", () => reject(new Error(`Unable to load image ${source}.`)), { once: true });
+        image.src = new URL(source, import.meta.url).href;
+    });
+
+    const loadSpriteSheet = async (sprite) => {
+        const image = await loadImage(sprite.src);
+        if (image.naturalWidth !== sprite.width || image.naturalHeight !== sprite.height) {
+            throw new Error(`Unexpected sprite sheet dimensions for ${sprite.id}.`);
+        }
+
+        const sheet = document.createElement("canvas");
+        sheet.width = sprite.width;
+        sheet.height = sprite.height;
+        const sheetContext = sheet.getContext("2d", { willReadFrequently: sprite.removeBlueKey });
+        if (!sheetContext) throw new Error(`Unable to create a canvas for ${sprite.id}.`);
+        sheetContext.imageSmoothingEnabled = false;
+        sheetContext.drawImage(image, 0, 0);
+        if (sprite.removeBlueKey) {
+            const imageData = sheetContext.getImageData(0, 0, sheet.width, sheet.height);
+            for (let index = 0; index < imageData.data.length; index += 4) {
+                if (imageData.data[index] === 0 && imageData.data[index + 1] === 0 && imageData.data[index + 2] === 255) {
+                    imageData.data[index + 3] = 0;
+                }
+            }
+            sheetContext.putImageData(imageData, 0, 0);
+        }
+        return sheet;
+    };
+
+    const drawThumbnail = (button, sprite, sheet) => {
+        const thumbnail = button.querySelector("canvas");
+        const thumbnailContext = thumbnail.getContext("2d");
+        if (!thumbnailContext) throw new Error(`Unable to create a thumbnail for ${sprite.id}.`);
+        const [sourceX, sourceY, sourceWidth, sourceHeight] = sprite.thumbnail;
+        thumbnailContext.imageSmoothingEnabled = false;
+        thumbnailContext.drawImage(
+            sheet,
+            sourceX,
+            sourceY,
+            sourceWidth,
+            sourceHeight,
+            0,
+            0,
+            thumbnail.width,
+            thumbnail.height
+        );
+    };
+
+    const renderFrame = (timestamp) => {
+        animationFrameId = null;
+        if (panel.hidden || !activeSprite || !activeSheet) return;
+
+        const delta = previousTimestamp ? Math.min((timestamp - previousTimestamp) / 1000, 0.05) : 0;
+        previousTimestamp = timestamp;
+        const movement = getMovementVector();
+        if (movement) {
+            currentDirection = directionFromVector(movement);
+            currentPosition.x += movement.x * 150 * delta;
+            currentPosition.y += movement.y * 150 * delta;
+        }
+
+        const actionName = movement ? "walk" : "idle";
+        const spriteAction = activeSprite.actions && activeSprite.actions[actionName];
+        const actionFrames = spriteAction && spriteAction[currentDirection]
+            ? spriteAction[currentDirection]
+            : spritesManifest.actions[actionName][currentDirection];
+        const frameRate = movement ? spritesManifest.walkFps : spritesManifest.idleFps;
+        const animationIndex = Math.floor(timestamp * frameRate / 1000) % actionFrames.length;
+        const frame = activeSprite.frames[actionFrames[animationIndex]];
+        const [sourceX, sourceY, sourceWidth, sourceHeight, anchorX, anchorY] = frame;
+        const scale = activeScale;
+        const minX = anchorX * scale + 8;
+        const maxX = canvas.width - (sourceWidth - anchorX) * scale - 8;
+        const minY = anchorY * scale + 8;
+        const maxY = canvas.height - (sourceHeight - anchorY) * scale - 8;
+        currentPosition.x = Math.min(maxX, Math.max(minX, currentPosition.x));
+        currentPosition.y = Math.min(maxY, Math.max(minY, currentPosition.y));
+
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.imageSmoothingEnabled = false;
+        context.drawImage(
+            activeSheet,
+            sourceX,
+            sourceY,
+            sourceWidth,
+            sourceHeight,
+            Math.round(currentPosition.x - anchorX * scale),
+            Math.round(currentPosition.y - anchorY * scale),
+            Math.round(sourceWidth * scale),
+            Math.round(sourceHeight * scale)
+        );
+        updateStatus(Boolean(movement));
+        animationFrameId = requestAnimationFrame(renderFrame);
+    };
+
+    const syncAnimation = () => {
+        if (panel.hidden) {
+            if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+            previousTimestamp = 0;
+            clearPressedInputs();
+            return;
+        }
+        if (!activeSheet || animationFrameId !== null) return;
+        previousTimestamp = 0;
+        animationFrameId = requestAnimationFrame(renderFrame);
+    };
+
+    const selectSprite = async (sprite, button) => {
+        const requestId = ++selectionRequest;
+        roster.querySelectorAll(".character-preview-option").forEach((option) => {
+            option.setAttribute("aria-pressed", String(option === button));
+        });
+        activeSprite = null;
+        activeSheet = null;
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        status.textContent = `讀取${sprite.label}圖集中...`;
+        try {
+            const sheet = await loadSpriteSheet(sprite);
+            if (requestId !== selectionRequest) return;
+            activeSprite = sprite;
+            activeSheet = sheet;
+            const maxFrameWidth = Math.max(...sprite.frames.map((frame) => frame[2]));
+            const maxFrameHeight = Math.max(...sprite.frames.map((frame) => frame[3]));
+            activeScale = Math.min(1.7, canvas.height * 0.62 / maxFrameHeight, canvas.width * 0.5 / maxFrameWidth);
+            currentDirection = "down";
+            currentPosition = { x: canvas.width / 2, y: canvas.height * 0.72 };
+            canvas.focus({ preventScroll: true });
+            syncAnimation();
+        } catch (error) {
+            if (requestId !== selectionRequest) return;
+            status.textContent = `${sprite.label}圖集載入失敗`;
+            console.error("Unable to load a character for the preview.", error);
+        }
+    };
+
+    const selectBaseSprite = (sprite) => {
+        selectedBaseSprite = sprite;
+        const alternateSprite = spritesById.get(`${sprite.id}_1`);
+        if (!alternateSprite) alternateColorEnabled = false;
+        alternateColorToggle.disabled = !alternateSprite;
+        alternateColorToggle.setAttribute("aria-pressed", String(Boolean(alternateSprite && alternateColorEnabled)));
+        void selectSprite(
+            alternateSprite && alternateColorEnabled ? alternateSprite : sprite,
+            thumbnailButtons.get(sprite.id)
+        );
+    };
+
+    alternateColorToggle.addEventListener("click", () => {
+        if (!selectedBaseSprite) return;
+        const alternateSprite = spritesById.get(`${selectedBaseSprite.id}_1`);
+        if (!alternateSprite) return;
+        alternateColorEnabled = !alternateColorEnabled;
+        alternateColorToggle.setAttribute("aria-pressed", String(alternateColorEnabled));
+        void selectSprite(
+            alternateColorEnabled ? alternateSprite : selectedBaseSprite,
+            thumbnailButtons.get(selectedBaseSprite.id)
+        );
+    });
+
+    characterTierToggle.addEventListener("click", () => {
+        const highCharacterEnabled = characterTierToggle.getAttribute("aria-pressed") !== "true";
+        characterTierToggle.textContent = highCharacterEnabled ? "高角" : "普角";
+        characterTierToggle.setAttribute("aria-pressed", String(highCharacterEnabled));
+    });
+
+    const handleKeyDown = (event) => {
+        const input = keyToInput.get(event.code);
+        if (!input || panel.hidden || document.activeElement !== canvas) return;
+        event.preventDefault();
+        pressedInputs.add(input);
+    };
+    const handleKeyUp = (event) => {
+        const input = keyToInput.get(event.code);
+        if (!input || !pressedInputs.has(input)) return;
+        event.preventDefault();
+        pressedInputs.delete(input);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("keyup", handleKeyUp);
+    canvas.addEventListener("blur", clearPressedInputs);
+    window.addEventListener("blur", clearPressedInputs);
+
+    directionPad.querySelectorAll(".character-preview-direction").forEach((button) => {
+        const inputs = button.dataset.keys.split(/\s+/).map((key) => keyToInput.get(key)).filter(Boolean);
+        const release = () => {
+            inputs.forEach((input) => pressedInputs.delete(input));
+            button.classList.remove("is-pressed");
+        };
+        button.addEventListener("pointerdown", (event) => {
+            if (event.button !== 0) return;
+            event.preventDefault();
+            inputs.forEach((input) => pressedInputs.add(input));
+            button.classList.add("is-pressed");
+            if (typeof button.setPointerCapture === "function") button.setPointerCapture(event.pointerId);
+            canvas.focus({ preventScroll: true });
+        });
+        button.addEventListener("pointerup", release);
+        button.addEventListener("pointercancel", release);
+        button.addEventListener("lostpointercapture", release);
+    });
+
+    canvas.addEventListener("pointerdown", () => canvas.focus({ preventScroll: true }));
+    const panelObserver = new MutationObserver(syncAnimation);
+    panelObserver.observe(panel, { attributes: true, attributeFilter: ["hidden"] });
+
+    let spritesManifest;
+    const isValidActionMap = (actionMap, frameCount, exactLength) => (
+        actionMap
+        && spritesManifest.directions.every((direction) => {
+            const frames = actionMap[direction];
+            return Array.isArray(frames)
+                && (exactLength === null
+                    ? frames.length > 0 && frames.length <= spritesManifest.framesPerDirection
+                    : frames.length === exactLength)
+                && frames.every((frameIndex) => (
+                    Number.isInteger(frameIndex)
+                    && frameIndex >= 0
+                    && frameIndex < frameCount
+                ));
+        })
+    );
+    try {
+        const response = await fetch(new URL("./data/character-preview-sprites.json?v=62", import.meta.url));
+        if (!response.ok) throw new Error(`Character sprite manifest request failed: ${response.status}`);
+        spritesManifest = await response.json();
+        if (
+            !Array.isArray(spritesManifest.sprites)
+            || !Array.isArray(spritesManifest.directions)
+            || spritesManifest.directions.length !== 8
+            || spritesManifest.framesPerDirection !== 4
+            || !spritesManifest.actions
+            || !spritesManifest.thumbnailSheet
+            || !Number.isInteger(spritesManifest.thumbnailWidth)
+            || !Number.isInteger(spritesManifest.thumbnailHeight)
+            || ["idle", "walk"].some((action) => (
+                !isValidActionMap(spritesManifest.actions[action], 56, spritesManifest.framesPerDirection)
+            ))
+            || spritesManifest.sprites.some((sprite) => (
+                !Array.isArray(sprite.frames)
+                || sprite.frames.length < 56
+                || sprite.frames.some((frame) => (
+                    !Array.isArray(frame)
+                    || frame.length !== 6
+                    || frame.some((value) => !Number.isFinite(value))
+                    || !Number.isInteger(frame[0])
+                    || !Number.isInteger(frame[1])
+                    || !Number.isInteger(frame[2])
+                    || !Number.isInteger(frame[3])
+                    || frame[0] < 0
+                    || frame[1] < 0
+                    || frame[2] <= 0
+                    || frame[3] <= 0
+                    || frame[0] + frame[2] > sprite.width
+                    || frame[1] + frame[3] > sprite.height
+                    || frame[4] < 0
+                    || frame[4] > frame[2]
+                    || frame[5] < 0
+                    || frame[5] > frame[3]
+                ))
+                || (sprite.actions && (
+                    Object.keys(sprite.actions).some((action) => !["idle", "walk"].includes(action))
+                    || Object.entries(sprite.actions).some(([action, actionMap]) => (
+                        !isValidActionMap(actionMap, sprite.frames.length, null)
+                    ))
+                ))
+                || !Array.isArray(sprite.thumbnail)
+                || sprite.thumbnail.length !== 4
+            ))
+        ) {
+            throw new Error("Character sprite manifest has an invalid frame layout.");
+        }
+        sprites = spritesManifest.sprites;
+        spritesById = new Map(sprites.map((sprite) => [sprite.id, sprite]));
+        baseSprites = sprites.filter((sprite) => !sprite.id.endsWith("_1"));
+    } catch (error) {
+        status.textContent = "角色圖集名單載入失敗";
+        console.error("Unable to load the character sprite manifest.", error);
+        return;
+    }
+
+    let thumbnailSheet = null;
+    try {
+        thumbnailSheet = await loadImage(spritesManifest.thumbnailSheet);
+        if (
+            thumbnailSheet.naturalWidth !== spritesManifest.thumbnailWidth
+            || thumbnailSheet.naturalHeight !== spritesManifest.thumbnailHeight
+        ) {
+            throw new Error("Character thumbnail sheet dimensions do not match the manifest.");
+        }
+    } catch (error) {
+        console.error("Unable to load the character thumbnail sheet.", error);
+    }
+
+    const fragment = document.createDocumentFragment();
+    baseSprites.forEach((sprite) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "character-preview-option";
+        button.setAttribute("aria-pressed", "false");
+        button.dataset.spriteId = sprite.id;
+        button.setAttribute("aria-label", sprite.label);
+        const thumbnail = document.createElement("canvas");
+        thumbnail.width = 64;
+        thumbnail.height = 80;
+        thumbnail.setAttribute("aria-hidden", "true");
+        const label = document.createElement("span");
+        label.textContent = sprite.label;
+        button.append(thumbnail, label);
+        button.addEventListener("click", () => selectBaseSprite(sprite));
+        thumbnailButtons.set(sprite.id, button);
+        fragment.append(button);
+    });
+    roster.append(fragment);
+    rosterCount.textContent = thumbnailSheet
+        ? `${baseSprites.length} 個角色`
+        : `${baseSprites.length} 個角色；縮圖載入失敗`;
+    if (thumbnailSheet) {
+        baseSprites.forEach((sprite) => drawThumbnail(thumbnailButtons.get(sprite.id), sprite, thumbnailSheet));
+    }
+
+    const defaultSprite = baseSprites.find((sprite) => sprite.id === "character18") || baseSprites[0];
+    if (!defaultSprite) {
+        status.textContent = "沒有可顯示的角色圖集";
+        console.error("The character sprite manifest contains no sprite sheets.");
+        return;
+    }
+    selectBaseSprite(defaultSprite);
 }
 
 function handleCompareToggle() {
@@ -1501,7 +1936,7 @@ function wearCard(card) {
     if (comparisonIndex < 0) return;
     const slot = equipmentSlotForCard(card);
     comparisonStates[comparisonIndex].slots[slot] = { card, level: equipmentLevel.value, isBlack: false };
-    comparisonStates[comparisonIndex].equipmentApplied[slot] = false;
+    comparisonStates[comparisonIndex].equipmentApplied[slot] = true;
     renderCompareSlots();
     renderCards();
     if (comparePanel.hidden) toggleComparePanel();
@@ -1652,7 +2087,7 @@ function renderEquipmentPicker(comparisonIndex, slot, anchor) {
         option.addEventListener("click", () => {
             closeEquipmentPicker();
             state.slots[slot] = { card, level: equipmentLevel.value, isBlack: false };
-            state.equipmentApplied[slot] = false;
+            state.equipmentApplied[slot] = true;
             renderCompareSlots();
             renderCards();
         });
@@ -1754,7 +2189,7 @@ function calculateCharacterDamage(character, damageType, comparisonIndex) {
 function getAppliedDamageBonusPercent(damageType, comparisonIndex) {
     const state = comparisonStates[comparisonIndex];
     let bonusPercent = 0;
-    for (const slot of ["magic", "weapon", "armor"]) {
+    for (const slot of ["weapon", "armor"]) {
         const selection = state.slots[slot];
         if (!state.equipmentApplied[slot] || !selection) continue;
         if (slot === "weapon") {
@@ -1770,7 +2205,7 @@ function getAppliedDamageBonusPercent(damageType, comparisonIndex) {
     return bonusPercent;
 }
 
-function getAppliedCharacterStatBonus(statKey, comparisonIndex, matchesSelection = () => true) {
+function getAppliedCharacterStatBonus(statKey, comparisonIndex, matchesSelection = (slot) => slot !== "magic") {
     const state = comparisonStates[comparisonIndex];
     let bonusPercent = 0;
     for (const slot of ["magic", "weapon", "armor"]) {
@@ -1792,14 +2227,125 @@ function calculateCharacterAttackInterval(character, damageType, comparisonIndex
     return character[`${damageType}Speed`] * timeMultiplier / speedMultiplier;
 }
 
-function calculateGoblinHitDamage(character, comparisonIndex) {
+function getPotentialEquipmentStatProfiles() {
+    const profiles = { magic: [], weapon: [], armor: [] };
+    const levels = Array.from({ length: 9 }, (_, index) => String(index + 1));
+
+    for (const card of cards) {
+        const slot = equipmentSlotForCard(card);
+        const parsedSpecial = parseEffectLines(getCardTextLines(card, "special"));
+        const skillOptions = getCardSpecialSkillOptions(card, parsedSpecial.custom).one;
+        const skillStatKeys = new Set(skillOptions.flatMap((skill) => (
+            Object.keys(parseEffectLines([skill]).values)
+        )));
+        const skillChoices = [...new Set(["", ...skillOptions])];
+
+        for (const level of levels) {
+            const baseStats = getStatsForLevel(card, level);
+            for (const skill of skillChoices) {
+                const specialStats = { ...parsedSpecial.values };
+                skillStatKeys.forEach((key) => { specialStats[key] = undefined; });
+                Object.assign(specialStats, parseEffectLines([skill]).values);
+
+                const stats = { ...baseStats };
+                for (const [key, value] of Object.entries(specialStats)) {
+                    if (typeof value !== "number") continue;
+                    stats[key] = (stats[key] || 0) + scaleStatToLevel(value, level);
+                }
+                profiles[slot].push({ subtype: card.art_subtype, stats });
+            }
+        }
+    }
+
+    return profiles;
+}
+
+function getCharacterStatMaximums() {
+    if (characterStatMaximumsCache) return characterStatMaximumsCache;
+
+    const profiles = getPotentialEquipmentStatProfiles();
+    const normalizeMaximum = (value) => Number(value.toFixed(6));
+    const readStat = (profile, key) => Number.isFinite(profile.stats[key]) ? profile.stats[key] : 0;
+    const maximumContribution = (items, key) => Math.max(0, ...items.map((profile) => readStat(profile, key)));
+    const weaponDamageBonus = (subtypes) => maximumContribution(
+        profiles.weapon.filter((profile) => subtypes.includes(profile.subtype)),
+        "attack_damage"
+    );
+    const armorDamageBonus = maximumContribution(profiles.armor, "attack_damage");
+    const allDamage = (damageType, bonusPercent) => Math.max(...characters.map((character) => {
+        const baseDamages = Array.isArray(character[damageType]) ? character[damageType] : [character[damageType]];
+        const hits = damageType === "melee" ? character.meleeHits || 1 : 1;
+        return Math.max(...baseDamages.map((damage) => applyAttackDamageModifier(damage, bonusPercent))) * hits;
+    }));
+    const maximumAttackInterval = (damageType) => {
+        const weaponTypes = damageType === "melee" ? ["axe", "sword"] : ["bow", "wand"];
+        // Armor attack speed only affects the denominator, so its minimum gives the longest interval.
+        const minimumArmorAttackSpeed = Math.min(
+            0,
+            ...profiles.armor.map((profile) => readStat(profile, "attack_speed"))
+        );
+        const weaponChoices = [{ subtype: "", stats: {} }, ...profiles.weapon];
+        let maximum = 0;
+
+        for (const character of characters) {
+            for (const weapon of weaponChoices) {
+                const attackSpeedBonus = readStat(weapon, "attack_speed") + minimumArmorAttackSpeed;
+                const attackTimeBonus = weaponTypes.includes(weapon.subtype) ? readStat(weapon, "attack_time") : 0;
+                const speedMultiplier = Math.max(0.01, 1 + attackSpeedBonus / 100);
+                const timeMultiplier = Math.max(
+                    0.01,
+                    attackTimeBonus < 0 ? Math.abs(attackTimeBonus) / 100 : 1 + attackTimeBonus / 100
+                );
+                maximum = Math.max(
+                    maximum,
+                    character[`${damageType}Speed`] * timeMultiplier / speedMultiplier
+                );
+            }
+        }
+        return maximum;
+    };
+
+    // Stat bonuses combine independently across equipment slots, so their maxima can be summed directly.
+    const maximumSpeedBonus = maximumContribution(profiles.weapon, "max_speed")
+        + maximumContribution(profiles.armor, "max_speed");
+    const maximumAccelerationBonus = maximumContribution(profiles.weapon, "acceleration")
+        + maximumContribution(profiles.armor, "acceleration");
+    const maximumMagicDamageBonus = maximumContribution(profiles.magic, "attack_damage");
+    const magicDamageBonus = Math.trunc(MAGIC_DAMAGE_BASE * maximumMagicDamageBonus / 100);
+
+    characterStatMaximumsCache = {
+        meleeDamage: normalizeMaximum(allDamage("melee", weaponDamageBonus(["axe", "sword"]) + armorDamageBonus)),
+        rangedDamage: normalizeMaximum(allDamage("ranged", weaponDamageBonus(["bow", "wand"]) + armorDamageBonus)),
+        meleeAttackInterval: normalizeMaximum(maximumAttackInterval("melee")),
+        rangedAttackInterval: normalizeMaximum(maximumAttackInterval("ranged")),
+        magicDamage: normalizeMaximum(Math.max(0, MAGIC_DAMAGE_BASE + magicDamageBonus)),
+        maxSpeed: normalizeMaximum(Math.max(...characters.map((character) => (
+            Math.max(0, character.maxSpeed * (1 + maximumSpeedBonus / 100) * 10)
+        )))),
+        turnSpeed: normalizeMaximum(Math.max(...characters.map((character) => Math.max(0, character.turnSpeed * 10)))),
+        acceleration: normalizeMaximum(Math.max(...characters.map((character) => (
+            Math.max(0, character.acceleration * (1 + maximumAccelerationBonus / 100) * 10)
+        )))),
+        hp: normalizeMaximum(Math.max(...characters.map((character) => character.hp))),
+        mp: normalizeMaximum(Math.max(...characters.map((character) => character.mp))),
+        bp: normalizeMaximum(Math.max(...characters.map((character) => character.bp)))
+    };
+    return characterStatMaximumsCache;
+}
+
+function calculateGoblinHitDamage(character, comparisonIndex, damageType = "melee") {
     const state = comparisonStates[comparisonIndex];
-    const baseMeleeDamage = character.melee[state.normalCharacter ? 0 : 1];
-    const measuredDamage = state.normalCharacter ? null : ({ 1: 23, 3: 34 }[character.id] ?? null);
-    const baseGoblinDamage = measuredDamage ?? Math.round(baseMeleeDamage * (character.id === 1 ? 0.82 : 0.85));
-    const bonusPercent = getAppliedDamageBonusPercent("melee", comparisonIndex);
+    const characterDamage = character[damageType];
+    const baseDamage = damageType === "ranged" && character.rangedRange
+        ? Math.min(...characterDamage)
+        : characterDamage[state.normalCharacter ? 0 : 1];
+    const measuredDamage = damageType === "melee" && !state.normalCharacter
+        ? ({ 1: 23, 3: 34 }[character.id] ?? null)
+        : null;
+    const baseGoblinDamage = measuredDamage ?? Math.round(baseDamage * (character.id === 1 ? 0.82 : 0.85));
+    const bonusPercent = getAppliedDamageBonusPercent(damageType, comparisonIndex);
     if (bonusPercent < 0) return Math.max(1, applyAttackDamageModifier(baseGoblinDamage, bonusPercent));
-    const equipmentDamage = Math.round(baseMeleeDamage * bonusPercent / 100 * 0.835);
+    const equipmentDamage = Math.round(baseDamage * bonusPercent / 100 * 0.835);
     return Math.max(1, baseGoblinDamage + equipmentDamage);
 }
 
@@ -1809,6 +2355,7 @@ function renderCharacterPanel(comparisonIndex) {
     if (!panel || !state) return;
     const character = characters.find((item) => item.id === state.characterId);
     if (!character) return;
+    const statMaximums = getCharacterStatMaximums();
 
     panel.querySelector(".character-stats-portrait").src = new URL(
         characterStatsPortraitArtwork(character), CHARACTER_ART_URL
@@ -1844,30 +2391,50 @@ function renderCharacterPanel(comparisonIndex) {
 
     const meleeInterval = calculateCharacterAttackInterval(character, "melee", comparisonIndex);
     const rangedInterval = calculateCharacterAttackInterval(character, "ranged", comparisonIndex);
-    const maxSpeed = Math.min(50, Math.max(0, character.maxSpeed * (1 + getAppliedCharacterStatBonus("max_speed", comparisonIndex) / 100) * 10));
-    const acceleration = Math.min(50, Math.max(0, character.acceleration * (1 + getAppliedCharacterStatBonus("acceleration", comparisonIndex) / 100) * 10));
+    const meleeBaseInterval = character.meleeSpeed;
+    const rangedBaseInterval = character.rangedSpeed;
+    const maxSpeedBase = Math.max(0, character.maxSpeed * 10);
+    const maxSpeed = Math.max(0, character.maxSpeed * (1 + getAppliedCharacterStatBonus("max_speed", comparisonIndex) / 100) * 10);
+    const accelerationBase = Math.max(0, character.acceleration * 10);
+    const acceleration = Math.max(0, character.acceleration * (1 + getAppliedCharacterStatBonus("acceleration", comparisonIndex) / 100) * 10);
+    const magicDamagePercent = getAppliedCharacterStatBonus("attack_damage", comparisonIndex, (slot) => slot === "magic");
+    const magicDamageBonus = Math.trunc(MAGIC_DAMAGE_BASE * magicDamagePercent / 100);
+    const magicDamage = Math.max(0, MAGIC_DAMAGE_BASE + magicDamageBonus);
     const rows = [
-        { label: "近戰傷害", damageType: "melee", maximum: 90 },
-        { label: "遠程傷害", damageType: "ranged", maximum: 40 },
-        { label: "近戰攻擊間隔", value: meleeInterval, maximum: 3, suffix: "秒/次", format: formatAttackInterval },
-        { label: "遠程攻擊間隔", value: rangedInterval, maximum: 3, suffix: "秒/次", format: formatAttackInterval },
-        { label: "最大速度", value: maxSpeed, maximum: 50, suffix: "/ 50" },
-        { label: "轉向速度", value: Math.min(50, Math.max(0, character.turnSpeed * 10)), maximum: 50, suffix: "/ 50" },
-        { label: "加速度", value: acceleration, maximum: 50, suffix: "/ 50", fullWidth: true },
-        { label: "HP", value: character.hp, maximum: 600, fullWidth: true },
-        { label: "MP", value: character.mp, maximum: 750, fullWidth: true },
-        { label: "BP", value: character.bp, maximum: 700, fullWidth: true }
+        { key: "meleeDamage", label: "近戰傷害", damageType: "melee", maximum: statMaximums.meleeDamage },
+        { key: "rangedDamage", label: "遠程傷害", damageType: "ranged", maximum: statMaximums.rangedDamage },
+        { key: "meleeAttackInterval", label: "近戰攻擊間隔", value: meleeInterval, baseValue: meleeBaseInterval, maximum: statMaximums.meleeAttackInterval, suffix: "秒/次", format: formatAttackInterval },
+        { key: "rangedAttackInterval", label: "遠程攻擊間隔", value: rangedInterval, baseValue: rangedBaseInterval, maximum: statMaximums.rangedAttackInterval, suffix: "秒/次", format: formatAttackInterval },
+        {
+            key: "magicDamage",
+            label: "魔法傷害",
+            value: magicDamage,
+            baseValue: MAGIC_DAMAGE_BASE,
+            maximum: statMaximums.magicDamage,
+            format: (value) => magicDamageBonus === 0
+                ? formatCharacterNumber(value)
+                : `${formatCharacterNumber(value)} (${MAGIC_DAMAGE_BASE}${magicDamageBonus > 0 ? "+" : ""}${magicDamageBonus})`
+        },
+        { key: "turnSpeed", label: "轉向速度", value: Math.max(0, character.turnSpeed * 10), maximum: statMaximums.turnSpeed, suffix: `/ ${formatCharacterNumber(statMaximums.turnSpeed)}` },
+        { key: "maxSpeed", label: "最大速度", value: maxSpeed, maximum: statMaximums.maxSpeed, suffix: `/ ${formatCharacterNumber(statMaximums.maxSpeed)}` },
+        { key: "acceleration", label: "加速度", value: acceleration, baseValue: accelerationBase, maximum: statMaximums.acceleration, suffix: `/ ${formatCharacterNumber(statMaximums.acceleration)}` },
+        { key: "hp", label: "HP", value: character.hp, maximum: statMaximums.hp, fullWidth: true, meterTone: "hp" },
+        { key: "mp", label: "MP", value: character.mp, maximum: statMaximums.mp, fullWidth: true, meterTone: "mp" },
+        { key: "bp", label: "BP", value: character.bp, maximum: statMaximums.bp, fullWidth: true, meterTone: "bp" }
     ];
     const fragment = document.createDocumentFragment();
     for (const rowData of rows) {
         const row = document.createElement("div");
         row.className = "character-stat-row";
+        row.dataset.statKey = rowData.key;
         if (rowData.fullWidth) row.classList.add("is-full-width");
+        if (rowData.meterTone) row.dataset.meterTone = rowData.meterTone;
         const label = document.createElement("span");
         label.className = "character-stat-label";
         label.textContent = rowData.label;
         const value = document.createElement("strong");
         let meterValue = rowData.value;
+        let meterBaseValue = rowData.baseValue ?? rowData.value;
         if (rowData.damageType) {
             const damage = calculateCharacterDamage(character, rowData.damageType, comparisonIndex);
             const hitLabel = damage.hits > 1 ? ` ×${damage.hits}` : "";
@@ -1889,19 +2456,30 @@ function renderCharacterPanel(comparisonIndex) {
                     ? `${resultLabel} (${baseLabel} × ${formatPercent(Math.abs(damage.bonusPercent))}%)`
                     : `${resultLabel} (${baseLabel} + ${bonusLabel})`;
             meterValue = Math.max(...damage.values) * damage.hits;
+            meterBaseValue = Math.max(...damage.baseDamages) * damage.hits;
         } else {
             value.textContent = `${(rowData.format || formatCharacterNumber)(rowData.value)}${rowData.suffix || ""}`;
         }
+        const displayedValue = Math.max(0, Math.min(rowData.maximum, meterValue));
+        const displayedBaseValue = Math.max(0, Math.min(rowData.maximum, meterBaseValue));
         const meter = document.createElement("div");
         meter.className = "character-stat-meter";
         meter.setAttribute("role", "meter");
         meter.setAttribute("aria-label", rowData.label);
         meter.setAttribute("aria-valuemin", "0");
         meter.setAttribute("aria-valuemax", String(rowData.maximum));
-        meter.setAttribute("aria-valuenow", String(meterValue));
-        const fill = document.createElement("span");
-        fill.style.width = `${Math.max(0, Math.min(100, meterValue / rowData.maximum * 100))}%`;
-        meter.append(fill);
+        meter.setAttribute("aria-valuenow", String(displayedValue));
+        const baseFill = document.createElement("span");
+        baseFill.className = "character-stat-meter-base";
+        const changeFill = document.createElement("span");
+        changeFill.className = "character-stat-meter-change";
+        const stableValue = Math.min(displayedBaseValue, displayedValue);
+        baseFill.style.width = `${stableValue / rowData.maximum * 100}%`;
+        if (displayedValue !== displayedBaseValue) {
+            changeFill.classList.add(displayedValue > displayedBaseValue ? "is-increase" : "is-decrease");
+            changeFill.style.width = `${Math.abs(displayedValue - displayedBaseValue) / rowData.maximum * 100}%`;
+        }
+        meter.append(baseFill, changeFill);
         row.append(label, value, meter);
         fragment.append(row);
     }
@@ -1915,15 +2493,24 @@ function renderGoblinSummary(comparisonIndex) {
     if (!panel || !state) return;
     const character = characters.find((item) => item.id === state.characterId);
     if (!character) return;
-    const hp = Number(state.goblinHp) || 0;
-    panel.querySelector(".goblin-hp-input").value = hp || "";
-    const damage = calculateGoblinHitDamage(character, comparisonIndex);
-    panel.querySelector(".goblin-hit-damage").textContent = String(damage);
-    panel.querySelector(".goblin-hit-count strong").textContent = hp > 0 ? `哥布林 ${Math.ceil(hp / damage)}次` : "哥布林 --次";
-    const meter = panel.querySelector(".goblin-damage-meter");
-    meter.setAttribute("aria-valuemax", String(hp));
-    meter.setAttribute("aria-valuenow", String(Math.min(damage, hp)));
-    panel.querySelector(".goblin-damage-fill").style.width = `${hp > 0 ? Math.min(100, damage / hp * 100) : 0}%`;
+    const damageType = state.goblinDamageType === "ranged" ? "ranged" : "melee";
+    const modeToggle = panel.querySelector(".goblin-damage-mode-toggle");
+    const nextDamageType = damageType === "ranged" ? "melee" : "ranged";
+    modeToggle.textContent = nextDamageType === "ranged" ? "遠程" : "近戰";
+    modeToggle.setAttribute("aria-pressed", String(damageType === "ranged"));
+    modeToggle.setAttribute("aria-label", `切換為${nextDamageType === "ranged" ? "遠程" : "近戰"}傷害`);
+    const damage = calculateGoblinHitDamage(character, comparisonIndex, damageType);
+    for (const goblinType of ["beginner", "hero"]) {
+        const hp = Number(state[`${goblinType}GoblinHp`]) || 0;
+        const row = panel.querySelector(`.goblin-hit-row[data-goblin-type="${goblinType}"]`);
+        row.querySelector(".goblin-hp-input").value = hp || "";
+        row.querySelector(".goblin-hit-damage").textContent = String(damage);
+        row.querySelector(".goblin-hit-count-number").textContent = hp > 0 ? `${Math.ceil(hp / damage)}次` : "--次";
+        const meter = row.querySelector(".goblin-damage-meter");
+        meter.setAttribute("aria-valuemax", String(hp));
+        meter.setAttribute("aria-valuenow", String(Math.min(damage, hp)));
+        row.querySelector(".goblin-damage-fill").style.width = `${hp > 0 ? Math.min(100, damage / hp * 100) : 0}%`;
+    }
 }
 
 function renderCompareTotals(comparisonIndex) {

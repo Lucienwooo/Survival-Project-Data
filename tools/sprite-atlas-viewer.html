@@ -1,0 +1,729 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>角色圖集檢視器</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            --page: #111713;
+            --panel: #1b2520;
+            --panel-deep: #101814;
+            --deep: #111713;
+            --line: #3a4940;
+            --ink: #e8eee9;
+            --ink-soft: #c1cdc4;
+            --muted: #96a49a;
+            --acid: #d5f36a;
+            --blue: #80aeb5;
+            --green: #62d6a2;
+            --red: #c47f83;
+            font-family: "Segoe UI", "Microsoft JhengHei", sans-serif;
+            color: var(--ink);
+            background: var(--page);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            min-width: 320px;
+            min-height: 100vh;
+            margin: 0;
+            background-color: var(--page);
+            background-image:
+                linear-gradient(rgba(220, 232, 222, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(220, 232, 222, 0.025) 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+
+        button, input { font: inherit; }
+        button { color: inherit; }
+
+        .app-shell {
+            width: min(1500px, 100%);
+            min-height: 100vh;
+            margin: 0 auto;
+            padding: 14px;
+            display: grid;
+            align-content: start;
+            gap: 10px;
+        }
+
+        .topbar, .toolbar, .panel, .app-footer {
+            background: var(--panel);
+            border: 1px solid var(--line);
+        }
+
+        .topbar {
+            min-height: 58px;
+            padding: 9px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .topbar h1 { margin: 0; font-size: 17px; }
+        .topbar p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+        .topbar-badge { padding: 3px 6px; color: var(--acid); border: 1px solid var(--line); font: 10px "Consolas", monospace; }
+
+        .toolbar {
+            min-height: 42px;
+            padding: 5px;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .toolbar-button, .file-button {
+            min-height: 29px;
+            padding: 4px 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--ink-soft);
+            background: var(--panel-deep);
+            border: 1px solid var(--line);
+            cursor: pointer;
+            font-size: 11px;
+            white-space: nowrap;
+        }
+
+        .toolbar-button:hover, .file-button:hover, .toolbar-button[aria-pressed="true"] {
+            color: var(--deep, #111713);
+            background: var(--acid);
+            border-color: var(--acid);
+        }
+
+        .toolbar-button:focus-visible, .file-button:focus-within, input:focus-visible {
+            outline: 1px solid var(--blue);
+            outline-offset: 1px;
+        }
+
+        #image-file { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; clip-path: inset(50%); }
+        .file-name { max-width: min(36vw, 340px); overflow: hidden; color: var(--ink-soft); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+        .toolbar-spacer { flex: 1 1 auto; }
+        .readout { color: var(--muted); font: 11px "Consolas", monospace; white-space: nowrap; }
+        .grid-setting { display: inline-flex; align-items: center; gap: 4px; color: var(--ink-soft); font-size: 11px; }
+        .grid-setting input { width: 54px; height: 27px; padding: 3px 5px; color: var(--ink); background: var(--panel-deep); border: 1px solid var(--line); }
+        .check-setting { display: inline-flex; align-items: center; gap: 4px; padding: 0 4px; color: var(--ink-soft); font-size: 11px; white-space: nowrap; }
+        .check-setting input { accent-color: var(--acid); }
+        .workspace { min-height: 560px; display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 10px; }
+        .panel { min-width: 0; display: flex; flex-direction: column; }
+        .panel-heading { min-height: 34px; padding: 6px 9px; display: flex; align-items: center; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--line); }
+        .panel-heading strong { font-size: 11px; }
+        .panel-heading span { color: var(--muted); font: 10px "Consolas", monospace; text-align: right; }
+        .viewport {
+            min-height: 0;
+            flex: 1 1 auto;
+            position: relative;
+            overflow: hidden;
+            background-color: #111713;
+            background-image:
+                linear-gradient(45deg, #1a241e 25%, transparent 25%),
+                linear-gradient(-45deg, #1a241e 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #1a241e 75%),
+                linear-gradient(-45deg, transparent 75%, #1a241e 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+            cursor: crosshair;
+            outline: none;
+        }
+
+        .viewport:focus-visible { box-shadow: inset 0 0 0 1px var(--blue); }
+        .viewport.is-panning { cursor: grabbing; }
+        #atlas-canvas {
+            position: absolute;
+            max-width: none;
+            display: none;
+            image-rendering: pixelated;
+            user-select: none;
+        }
+
+        .empty-state {
+            position: absolute;
+            inset: 0;
+            padding: 24px;
+            display: grid;
+            place-content: center;
+            gap: 6px;
+            color: var(--muted);
+            text-align: center;
+            pointer-events: none;
+        }
+
+        .empty-state[hidden] { display: none; }
+        .empty-state strong { color: var(--ink-soft); font-size: 13px; }
+        .empty-state span { font-size: 11px; }
+        .panel-footer { min-height: 27px; padding: 6px 8px; color: var(--muted); border-top: 1px solid var(--line); font-size: 10px; }
+        .inspector { gap: 0; }
+        .inspector-content { padding: 8px; display: grid; align-content: start; gap: 8px; }
+        .field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+        .field { min-width: 0; display: grid; gap: 3px; color: var(--muted); font-size: 10px; }
+        .field input {
+            width: 100%;
+            min-width: 0;
+            height: 28px;
+            padding: 4px 6px;
+            color: var(--ink);
+            background: var(--panel-deep);
+            border: 1px solid var(--line);
+            font: 11px "Consolas", monospace;
+        }
+
+        .apply-button { min-height: 30px; color: var(--deep, #111713); background: var(--acid); border: 1px solid var(--acid); cursor: pointer; font-size: 11px; font-weight: 700; }
+        .apply-button:hover { color: var(--ink); background: var(--panel-deep); }
+        .crop-preview {
+            min-height: 220px;
+            display: grid;
+            place-items: center;
+            overflow: hidden;
+            background-color: #111713;
+            background-image:
+                linear-gradient(45deg, #1a241e 25%, transparent 25%),
+                linear-gradient(-45deg, #1a241e 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #1a241e 75%),
+                linear-gradient(-45deg, transparent 75%, #1a241e 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+            border: 1px solid var(--line);
+        }
+
+        #frame-canvas { width: 100%; max-height: 220px; image-rendering: pixelated; }
+        .sequence-panel { grid-column: 1 / -1; display: grid; gap: 5px; }
+        .sequence-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .sequence-heading strong { color: var(--ink-soft); font-size: 10px; }
+        .sequence-heading span { color: var(--muted); font: 10px "Consolas", monospace; }
+        .sequence-controls { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 3px; }
+        .sequence-controls button {
+            min-width: 0;
+            min-height: 27px;
+            padding: 2px;
+            color: var(--ink-soft);
+            background: var(--panel-deep);
+            border: 1px solid var(--line);
+            cursor: pointer;
+            font-size: 9px;
+            white-space: nowrap;
+        }
+
+        .sequence-controls button:hover:not(:disabled), .sequence-controls button[aria-pressed="true"] { color: var(--deep); background: var(--acid); border-color: var(--acid); }
+        .sequence-controls button:disabled { cursor: not-allowed; opacity: 0.5; }
+        .sequence-list { max-height: 112px; margin: 0; padding: 0; display: grid; align-content: start; gap: 3px; overflow: auto; list-style: none; }
+        .sequence-item { width: 100%; min-height: 25px; padding: 3px 5px; color: var(--ink-soft); background: var(--panel-deep); border: 1px solid var(--line); cursor: pointer; font: 9px "Consolas", monospace; text-align: left; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
+        .sequence-item[aria-pressed="true"] { color: var(--acid); border-color: var(--acid); }
+        .sequence-empty { padding: 6px; color: var(--muted); border: 1px solid var(--line); font-size: 10px; text-align: center; }
+        .formula-box { padding: 7px; color: var(--ink-soft); background: var(--panel-deep); border: 1px solid var(--line); font-size: 10px; line-height: 1.6; }
+        .formula-box code { color: var(--green); font: 10px "Consolas", monospace; overflow-wrap: anywhere; }
+        .status-line { min-height: 15px; color: var(--muted); font-size: 10px; }
+        .app-footer { padding: 7px 9px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+        .app-footer strong { color: var(--ink-soft); }
+
+        @media (max-width: 850px) {
+            .app-shell { padding: 8px; }
+            .workspace { min-height: 0; grid-template-columns: minmax(0, 1fr); }
+            .viewport { min-height: 55vh; }
+            .inspector-content { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+            .inspector-content > .panel-heading, .inspector-content > .formula-box, .inspector-content > .status-line { grid-column: 1 / -1; }
+            .crop-preview { min-height: 180px; }
+        }
+
+        @media (max-width: 520px) {
+            .toolbar-spacer { display: none; }
+            .file-name { max-width: 100%; flex: 1 1 100%; }
+            .inspector-content { grid-template-columns: minmax(0, 1fr); }
+            .inspector-content > * { grid-column: 1 / -1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-shell">
+        <header class="topbar">
+            <div>
+                <h1>角色圖集檢視器</h1>
+                <p>讀取本機圖片，檢視影格裁切與 anchor 定位</p>
+            </div>
+            <span class="topbar-badge">LOCAL / 1PX</span>
+        </header>
+
+        <section class="toolbar" aria-label="圖集檢視工具">
+            <label class="file-button" for="image-file">選擇圖檔</label>
+            <input id="image-file" type="file" accept="image/png,image/webp,image/jpeg,image/gif">
+            <span id="file-name" class="file-name">尚未選取圖檔</span>
+            <span id="image-size" class="readout">尺寸：--</span>
+            <span class="toolbar-spacer"></span>
+            <button id="zoom-out" class="toolbar-button" type="button" aria-label="縮小">−</button>
+            <button id="zoom-in" class="toolbar-button" type="button" aria-label="放大">＋</button>
+            <button id="zoom-actual" class="toolbar-button" type="button">1:1</button>
+            <button id="zoom-fit" class="toolbar-button" type="button">符合視窗</button>
+            <label class="check-setting"><input id="grid-toggle" type="checkbox" checked>格線</label>
+            <label class="grid-setting">格距 <input id="grid-size" type="number" min="1" max="2048" step="1" value="32"></label>
+        </section>
+
+        <div class="workspace">
+            <section class="panel" aria-label="圖集檢視區">
+                <header class="panel-heading">
+                    <strong>圖集檢視</strong>
+                    <span id="pointer-position">游標：--</span>
+                </header>
+                <div id="viewport" class="viewport" tabindex="0">
+                    <canvas id="atlas-canvas" aria-label="圖集與裁切範圍"></canvas>
+                    <div id="empty-state" class="empty-state">
+                        <strong>選擇或拖放一張圖片</strong>
+                        <span>可從檔案總管選取 along.png 或其他本機圖檔</span>
+                    </div>
+                </div>
+                <div class="panel-footer">滾輪縮放；Shift + 拖曳平移；點擊圖片可設定裁切起點</div>
+            </section>
+
+            <aside class="panel inspector" aria-label="影格裁切與錨點預覽">
+                <header class="panel-heading">
+                    <strong>影格裁切 / Anchor</strong>
+                    <span id="frame-size">--</span>
+                </header>
+                <div class="inspector-content">
+                    <div class="field-grid">
+                        <label class="field">裁切 X <input id="crop-x" type="number" min="0" step="1" value="0"></label>
+                        <label class="field">裁切 Y <input id="crop-y" type="number" min="0" step="1" value="0"></label>
+                        <label class="field">寬度 W <input id="crop-w" type="number" min="1" step="1" value="64"></label>
+                        <label class="field">高度 H <input id="crop-h" type="number" min="1" step="1" value="64"></label>
+                        <label class="field">Anchor X <input id="anchor-x" type="number" step="1" value="32"></label>
+                        <label class="field">Anchor Y <input id="anchor-y" type="number" step="1" value="64"></label>
+                    </div>
+                    <button id="apply-crop" class="apply-button" type="button">套用裁切與 Anchor</button>
+                    <div class="crop-preview">
+                        <canvas id="frame-canvas" width="280" height="220" aria-label="依 Anchor 對齊的單格預覽"></canvas>
+                    </div>
+                    <section class="sequence-panel" aria-label="影格順序測試">
+                        <div class="sequence-heading">
+                            <strong>影格順序</strong>
+                            <span id="sequence-count">0 格</span>
+                        </div>
+                        <div class="sequence-controls">
+                            <button id="sequence-add" type="button" disabled>加入</button>
+                            <button id="sequence-play" type="button" disabled>播放</button>
+                            <button id="sequence-up" type="button" disabled>上移</button>
+                            <button id="sequence-down" type="button" disabled>下移</button>
+                            <button id="sequence-remove" type="button" disabled>移除</button>
+                        </div>
+                        <ol id="sequence-list" class="sequence-list" aria-label="目前影格順序">
+                            <li class="sequence-empty">加入裁切影格後，可調整順序並預覽播放</li>
+                        </ol>
+                    </section>
+                    <div class="formula-box">
+                        <strong>定位公式</strong><br>
+                        把 Anchor 放在場景固定點，影格從這裡反向對齊。<br>
+                        <code>繪製 X/Y = 人物座標 - Anchor × 縮放</code>
+                    </div>
+                    <div id="tool-status" class="status-line" role="status">尚未載入圖片</div>
+                </div>
+            </aside>
+        </div>
+
+        <footer class="app-footer">
+            <strong>操作方式：</strong>調整 X/Y/W/H 選影格，調整 Anchor X/Y 看角色對齊效果。格線只供檢視，不會修改或輸出原始圖片。
+        </footer>
+    </div>
+
+    <script>
+        const fileInput = document.querySelector("#image-file");
+        const fileName = document.querySelector("#file-name");
+        const imageSize = document.querySelector("#image-size");
+        const viewport = document.querySelector("#viewport");
+        const atlasCanvas = document.querySelector("#atlas-canvas");
+        const atlasContext = atlasCanvas.getContext("2d");
+        const emptyState = document.querySelector("#empty-state");
+        const pointerPosition = document.querySelector("#pointer-position");
+        const gridToggle = document.querySelector("#grid-toggle");
+        const gridSizeInput = document.querySelector("#grid-size");
+        const frameCanvas = document.querySelector("#frame-canvas");
+        const frameContext = frameCanvas.getContext("2d");
+        const toolStatus = document.querySelector("#tool-status");
+        const frameSize = document.querySelector("#frame-size");
+        const sequenceList = document.querySelector("#sequence-list");
+        const sequenceCount = document.querySelector("#sequence-count");
+        const sequenceAddButton = document.querySelector("#sequence-add");
+        const sequencePlayButton = document.querySelector("#sequence-play");
+        const sequenceUpButton = document.querySelector("#sequence-up");
+        const sequenceDownButton = document.querySelector("#sequence-down");
+        const sequenceRemoveButton = document.querySelector("#sequence-remove");
+        const cropInputs = {
+            x: document.querySelector("#crop-x"),
+            y: document.querySelector("#crop-y"),
+            width: document.querySelector("#crop-w"),
+            height: document.querySelector("#crop-h"),
+            anchorX: document.querySelector("#anchor-x"),
+            anchorY: document.querySelector("#anchor-y")
+        };
+        let image = null;
+        let objectUrl = "";
+        let zoom = 1;
+        let panX = 0;
+        let panY = 0;
+        let fitOnResize = false;
+        let panStart = null;
+        const frameSequence = [];
+        let selectedFrameIndex = -1;
+        let sequenceTimer = null;
+
+        const clamp = (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, value));
+        const readNumber = (input, fallback) => {
+            const value = Number(input.value);
+            return Number.isFinite(value) ? Math.round(value) : fallback;
+        };
+
+        function getCrop() {
+            if (!image) return null;
+            const x = clamp(readNumber(cropInputs.x, 0), 0, image.naturalWidth - 1);
+            const y = clamp(readNumber(cropInputs.y, 0), 0, image.naturalHeight - 1);
+            const width = clamp(readNumber(cropInputs.width, 1), 1, image.naturalWidth - x);
+            const height = clamp(readNumber(cropInputs.height, 1), 1, image.naturalHeight - y);
+            return {
+                x,
+                y,
+                width,
+                height,
+                anchorX: readNumber(cropInputs.anchorX, 0),
+                anchorY: readNumber(cropInputs.anchorY, 0)
+            };
+        }
+
+        function syncCropInputs(crop) {
+            cropInputs.x.value = String(crop.x);
+            cropInputs.y.value = String(crop.y);
+            cropInputs.width.value = String(crop.width);
+            cropInputs.height.value = String(crop.height);
+            cropInputs.anchorX.value = String(crop.anchorX);
+            cropInputs.anchorY.value = String(crop.anchorY);
+        }
+
+        function stopSequencePlayback() {
+            if (sequenceTimer !== null) window.clearInterval(sequenceTimer);
+            sequenceTimer = null;
+            sequencePlayButton.textContent = "播放";
+            sequencePlayButton.setAttribute("aria-pressed", "false");
+        }
+
+        function updateSequenceList() {
+            sequenceList.replaceChildren();
+            sequenceCount.textContent = `${frameSequence.length} 格`;
+            if (frameSequence.length === 0) {
+                const emptyItem = document.createElement("li");
+                emptyItem.className = "sequence-empty";
+                emptyItem.textContent = "加入裁切影格後，可調整順序並預覽播放";
+                sequenceList.append(emptyItem);
+            } else {
+                frameSequence.forEach((frame, index) => {
+                    const item = document.createElement("li");
+                    const button = document.createElement("button");
+                    button.type = "button";
+                    button.className = "sequence-item";
+                    button.setAttribute("aria-pressed", String(index === selectedFrameIndex));
+                    button.textContent = `${String(index + 1).padStart(2, "0")}｜${frame.x},${frame.y}｜${frame.width}×${frame.height}｜A${frame.anchorX},${frame.anchorY}`;
+                    button.addEventListener("click", () => selectSequenceFrame(index));
+                    item.append(button);
+                    sequenceList.append(item);
+                });
+            }
+            sequenceAddButton.disabled = !image;
+            sequencePlayButton.disabled = frameSequence.length < 2;
+            sequenceUpButton.disabled = selectedFrameIndex <= 0;
+            sequenceDownButton.disabled = selectedFrameIndex < 0 || selectedFrameIndex >= frameSequence.length - 1;
+            sequenceRemoveButton.disabled = selectedFrameIndex < 0;
+        }
+
+        function selectSequenceFrame(index) {
+            if (index < 0 || index >= frameSequence.length) return;
+            selectedFrameIndex = index;
+            syncCropInputs(frameSequence[index]);
+            drawAtlas();
+            updateSequenceList();
+        }
+
+        function updateCanvasPosition() {
+            if (!image) return;
+            atlasCanvas.style.display = "block";
+            atlasCanvas.style.left = `${panX}px`;
+            atlasCanvas.style.top = `${panY}px`;
+            atlasCanvas.style.width = `${image.naturalWidth * zoom}px`;
+            atlasCanvas.style.height = `${image.naturalHeight * zoom}px`;
+        }
+
+        function drawCropPreview(crop) {
+            frameContext.clearRect(0, 0, frameCanvas.width, frameCanvas.height);
+            if (!image || !crop) {
+                frameSize.textContent = "--";
+                return;
+            }
+
+            const scale = Math.min(
+                6,
+                (frameCanvas.width - 24) / crop.width,
+                (frameCanvas.height - 24) / crop.height
+            );
+            const drawX = (frameCanvas.width - crop.width * scale) / 2 - crop.anchorX * scale;
+            const drawY = (frameCanvas.height - crop.height * scale) / 2 - crop.anchorY * scale;
+            frameContext.imageSmoothingEnabled = false;
+            frameContext.drawImage(
+                image,
+                crop.x,
+                crop.y,
+                crop.width,
+                crop.height,
+                drawX,
+                drawY,
+                crop.width * scale,
+                crop.height * scale
+            );
+            frameContext.strokeStyle = "#62d6a2";
+            frameContext.lineWidth = 1;
+            frameContext.beginPath();
+            frameContext.moveTo(frameCanvas.width / 2 - 7, frameCanvas.height / 2);
+            frameContext.lineTo(frameCanvas.width / 2 + 7, frameCanvas.height / 2);
+            frameContext.moveTo(frameCanvas.width / 2, frameCanvas.height / 2 - 7);
+            frameContext.lineTo(frameCanvas.width / 2, frameCanvas.height / 2 + 7);
+            frameContext.stroke();
+            frameSize.textContent = `${crop.width} × ${crop.height}`;
+        }
+
+        function drawAtlas() {
+            if (!image) return;
+            const width = image.naturalWidth;
+            const height = image.naturalHeight;
+            if (atlasCanvas.width !== width || atlasCanvas.height !== height) {
+                atlasCanvas.width = width;
+                atlasCanvas.height = height;
+            }
+            atlasContext.clearRect(0, 0, width, height);
+            atlasContext.imageSmoothingEnabled = false;
+            atlasContext.drawImage(image, 0, 0);
+
+            if (gridToggle.checked) {
+                const gridSize = clamp(readNumber(gridSizeInput, 32), 1, 2048);
+                atlasContext.strokeStyle = "rgba(128, 174, 181, 0.28)";
+                atlasContext.lineWidth = 1;
+                atlasContext.beginPath();
+                for (let x = 0; x <= width; x += gridSize) {
+                    atlasContext.moveTo(x + 0.5, 0);
+                    atlasContext.lineTo(x + 0.5, height);
+                }
+                for (let y = 0; y <= height; y += gridSize) {
+                    atlasContext.moveTo(0, y + 0.5);
+                    atlasContext.lineTo(width, y + 0.5);
+                }
+                atlasContext.stroke();
+            }
+
+            const crop = getCrop();
+            if (crop) {
+                atlasContext.strokeStyle = "#d5f36a";
+                atlasContext.lineWidth = 1;
+                atlasContext.strokeRect(crop.x + 0.5, crop.y + 0.5, crop.width, crop.height);
+                const anchorX = crop.x + crop.anchorX;
+                const anchorY = crop.y + crop.anchorY;
+                atlasContext.strokeStyle = "#62d6a2";
+                atlasContext.beginPath();
+                atlasContext.moveTo(anchorX - 5, anchorY + 0.5);
+                atlasContext.lineTo(anchorX + 6, anchorY + 0.5);
+                atlasContext.moveTo(anchorX + 0.5, anchorY - 5);
+                atlasContext.lineTo(anchorX + 0.5, anchorY + 6);
+                atlasContext.stroke();
+                drawCropPreview(crop);
+            }
+            sequenceAddButton.disabled = false;
+            updateCanvasPosition();
+        }
+
+        function fitImage() {
+            if (!image) return;
+            const availableWidth = Math.max(1, viewport.clientWidth - 32);
+            const availableHeight = Math.max(1, viewport.clientHeight - 32);
+            zoom = clamp(Math.min(availableWidth / image.naturalWidth, availableHeight / image.naturalHeight, 1), 0.05, 8);
+            panX = (viewport.clientWidth - image.naturalWidth * zoom) / 2;
+            panY = (viewport.clientHeight - image.naturalHeight * zoom) / 2;
+            fitOnResize = true;
+            drawAtlas();
+        }
+
+        function setZoom(nextZoom, anchorX = viewport.clientWidth / 2, anchorY = viewport.clientHeight / 2) {
+            if (!image) return;
+            const boundedZoom = clamp(nextZoom, 0.05, 8);
+            const imageX = (anchorX - panX) / zoom;
+            const imageY = (anchorY - panY) / zoom;
+            zoom = boundedZoom;
+            panX = anchorX - imageX * zoom;
+            panY = anchorY - imageY * zoom;
+            fitOnResize = false;
+            drawAtlas();
+        }
+
+        function loadFile(file) {
+            if (!file) return;
+            if (file.type && !file.type.startsWith("image/")) {
+                toolStatus.textContent = "請選擇圖片檔案";
+                return;
+            }
+
+            const nextUrl = URL.createObjectURL(file);
+            const nextImage = new Image();
+            nextImage.onload = () => {
+                if (objectUrl) URL.revokeObjectURL(objectUrl);
+                objectUrl = nextUrl;
+                image = nextImage;
+                stopSequencePlayback();
+                frameSequence.length = 0;
+                selectedFrameIndex = -1;
+                updateSequenceList();
+                fileName.textContent = file.name;
+                imageSize.textContent = `尺寸：${image.naturalWidth} × ${image.naturalHeight}`;
+                emptyState.hidden = true;
+                syncCropInputs({
+                    x: 0,
+                    y: 0,
+                    width: Math.min(64, image.naturalWidth),
+                    height: Math.min(64, image.naturalHeight),
+                    anchorX: Math.min(32, image.naturalWidth),
+                    anchorY: Math.min(64, image.naturalHeight)
+                });
+                toolStatus.textContent = "圖片已載入；原始檔保持不變";
+                fitImage();
+            };
+            nextImage.onerror = () => {
+                URL.revokeObjectURL(nextUrl);
+                toolStatus.textContent = "圖片讀取失敗，請確認檔案格式";
+            };
+            nextImage.src = nextUrl;
+        }
+
+        fileInput.addEventListener("change", () => loadFile(fileInput.files[0]));
+        document.querySelector("#zoom-in").addEventListener("click", () => setZoom(zoom * 1.25));
+        document.querySelector("#zoom-out").addEventListener("click", () => setZoom(zoom / 1.25));
+        document.querySelector("#zoom-actual").addEventListener("click", () => setZoom(1));
+        document.querySelector("#zoom-fit").addEventListener("click", fitImage);
+        document.querySelector("#apply-crop").addEventListener("click", () => {
+            const crop = getCrop();
+            if (!crop) {
+                toolStatus.textContent = "請先載入圖片";
+                return;
+            }
+            syncCropInputs(crop);
+            if (selectedFrameIndex >= 0) frameSequence[selectedFrameIndex] = { ...crop };
+            updateSequenceList();
+            toolStatus.textContent = `裁切預覽已更新；Anchor (${crop.anchorX}, ${crop.anchorY})`;
+            drawAtlas();
+        });
+        sequenceAddButton.addEventListener("click", () => {
+            const crop = getCrop();
+            if (!crop) {
+                toolStatus.textContent = "請先載入圖片";
+                return;
+            }
+            stopSequencePlayback();
+            frameSequence.push({ ...crop });
+            selectSequenceFrame(frameSequence.length - 1);
+            toolStatus.textContent = `已加入第 ${frameSequence.length} 格`;
+        });
+        sequencePlayButton.addEventListener("click", () => {
+            if (sequenceTimer !== null) {
+                stopSequencePlayback();
+                return;
+            }
+            if (frameSequence.length < 2) return;
+            sequencePlayButton.textContent = "暫停";
+            sequencePlayButton.setAttribute("aria-pressed", "true");
+            sequenceTimer = window.setInterval(() => {
+                selectSequenceFrame((selectedFrameIndex + 1) % frameSequence.length);
+            }, 200);
+        });
+        sequenceUpButton.addEventListener("click", () => {
+            if (selectedFrameIndex <= 0) return;
+            [frameSequence[selectedFrameIndex - 1], frameSequence[selectedFrameIndex]] = [
+                frameSequence[selectedFrameIndex],
+                frameSequence[selectedFrameIndex - 1]
+            ];
+            selectSequenceFrame(selectedFrameIndex - 1);
+        });
+        sequenceDownButton.addEventListener("click", () => {
+            if (selectedFrameIndex < 0 || selectedFrameIndex >= frameSequence.length - 1) return;
+            [frameSequence[selectedFrameIndex + 1], frameSequence[selectedFrameIndex]] = [
+                frameSequence[selectedFrameIndex],
+                frameSequence[selectedFrameIndex + 1]
+            ];
+            selectSequenceFrame(selectedFrameIndex + 1);
+        });
+        sequenceRemoveButton.addEventListener("click", () => {
+            if (selectedFrameIndex < 0) return;
+            stopSequencePlayback();
+            frameSequence.splice(selectedFrameIndex, 1);
+            if (frameSequence.length === 0) {
+                selectedFrameIndex = -1;
+                updateSequenceList();
+                drawAtlas();
+                return;
+            }
+            selectSequenceFrame(Math.min(selectedFrameIndex, frameSequence.length - 1));
+        });
+        gridToggle.addEventListener("change", drawAtlas);
+        gridSizeInput.addEventListener("input", drawAtlas);
+        Object.values(cropInputs).forEach((input) => input.addEventListener("input", drawAtlas));
+
+        viewport.addEventListener("dragover", (event) => event.preventDefault());
+        viewport.addEventListener("drop", (event) => {
+            event.preventDefault();
+            loadFile(event.dataTransfer.files[0]);
+        });
+        viewport.addEventListener("pointerdown", (event) => {
+            if (!image) return;
+            if (event.button === 1 || (event.button === 0 && event.shiftKey)) {
+                panStart = { x: event.clientX, y: event.clientY, panX, panY };
+                viewport.classList.add("is-panning");
+                viewport.setPointerCapture(event.pointerId);
+                event.preventDefault();
+                return;
+            }
+            if (event.button !== 0 || event.target !== atlasCanvas) return;
+            const bounds = viewport.getBoundingClientRect();
+            const x = Math.floor((event.clientX - bounds.left - panX) / zoom);
+            const y = Math.floor((event.clientY - bounds.top - panY) / zoom);
+            if (x < 0 || y < 0 || x >= image.naturalWidth || y >= image.naturalHeight) return;
+            cropInputs.x.value = String(x);
+            cropInputs.y.value = String(y);
+            drawAtlas();
+        });
+        viewport.addEventListener("pointermove", (event) => {
+            if (panStart) {
+                panX = panStart.panX + event.clientX - panStart.x;
+                panY = panStart.panY + event.clientY - panStart.y;
+                updateCanvasPosition();
+                return;
+            }
+            if (!image) return;
+            const bounds = viewport.getBoundingClientRect();
+            const x = Math.floor((event.clientX - bounds.left - panX) / zoom);
+            const y = Math.floor((event.clientY - bounds.top - panY) / zoom);
+            pointerPosition.textContent = x >= 0 && y >= 0 && x < image.naturalWidth && y < image.naturalHeight
+                ? `游標：${x}, ${y}`
+                : "游標：--";
+        });
+        const endPan = () => {
+            panStart = null;
+            viewport.classList.remove("is-panning");
+        };
+        viewport.addEventListener("pointerup", endPan);
+        viewport.addEventListener("pointercancel", endPan);
+        viewport.addEventListener("lostpointercapture", endPan);
+        viewport.addEventListener("wheel", (event) => {
+            if (!image) return;
+            event.preventDefault();
+            const bounds = viewport.getBoundingClientRect();
+            const factor = event.deltaY < 0 ? 1.15 : 1 / 1.15;
+            setZoom(zoom * factor, event.clientX - bounds.left, event.clientY - bounds.top);
+        }, { passive: false });
+        window.addEventListener("resize", () => {
+            if (image && fitOnResize) fitImage();
+        });
+    </script>
+</body>
+</html>

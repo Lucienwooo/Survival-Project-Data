@@ -1,0 +1,20 @@
+{
+  "name": "survival-project-visitor-counter",
+  "main": "src/index.mjs",
+  "compatibility_date": "2026-11-19",
+  "workers_dev": true,
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "VISITOR_COUNTER",
+        "class_name": "VisitorCounter"
+      }
+    ]
+  },
+  "exports": {
+    "VisitorCounter": {
+      "type": "durable-object",
+      "storage": "sqlite"
+    }
+  }
+}

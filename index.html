@@ -1,6 +1,22 @@
 <!doctype html>
 <html lang="zh-Hant" data-theme="dark">
 <head>
+    <!-- 1989/06/04 -->
+    <!--
+⣿⣿⣿⣿⣿⠟⠋⠄⠄⠄⠄⠄⠄⠄⢁⠈⢻⢿⣿⣿⣿⣿⣿⣿⣿
+⣿⣿⣿⣿⣿⠃⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠈⡀⠭⢿⣿⣿⣿⣿
+⣿⣿⣿⣿⡟⠄⢀⣾⣿⣿⣿⣷⣶⣿⣷⣶⣶⡆⠄⠄⠄⣿⣿⣿⣿
+⣿⣿⣿⣿⡇⢀⣼⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣧⠄⠄⢸⣿⣿⣿⣿
+⣿⣿⣿⣿⣇⣼⣿⣿⠿⠶⠙⣿⡟⠡⣴⣿⣽⣿⣧⠄⢸⣿⣿⣿⣿
+⣿⣿⣿⣿⣿⣾⣿⣿⣟⣭⣾⣿⣷⣶⣶⣴⣶⣿⣿⢄⣿⣿⣿⣿⣿
+⣿⣿⣿⣿⣿⣿⣿⣿⡟⣩⣿⣿⣿⡏⢻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿
+⣿⣿⣿⣿⣿⣿⣹⡋⠘⠷⣦⣀⣠⡶⠁⠈⠁⠄⣿⣿⣿⣿⣿⣿⣿
+⣿⣿⣿⣿⣿⣿⣍⠃⣴⣶⡔⠒⠄⣠⢀⠄⠄⠄⡨⣿⣿⣿⣿⣿⣿
+⣿⣿⣿⣿⣿⣿⣿⣦⡘⠿⣷⣿⠿⠟⠃⠄⠄⣠⡇⠈⠻⣿⣿⣿⣿
+⣿⣿⣿⣿⡿⠟⠋⢁⣷⣠⠄⠄⠄⠄⣀⣠⣾⡟⠄⠄⠄⠄⠉⠙⠻
+⡿⠟⠋⠁⠄⠄⠄⢸⣿⣿⡯⢓⣴⣾⣿⣿⡟⠄⠄⠄⠄⠄⠄⠄⠄
+⠄⠄⠄⠄⠄⠄⠄⣿⡟⣷⠄⠹⣿⣿⣿⡿⠁⠄⠄⠄⠄⠄⠄⠄⠄
+-->
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#111713">
@@ -9,17 +25,27 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./styles.css?v=42">
-    <script type="module" src="./app.js?v=51"></script>
+    <link rel="stylesheet" href="./styles.css?v=52">
+    <script type="module" src="./app.js?v=65"></script>
 </head>
 <body>
+    <!-- 1989/06/04 -->
     <header class="site-header">
         <a class="brand" href="./" aria-label="Survival Project Archive 首頁">
             <span class="brand-mark">SP</span>
             <span class="brand-name">SURVIVAL PROJECT <span>/ ARCHIVE</span></span>
         </a>
         <div class="header-tools">
-            <div class="header-note"><span class="live-mark"></span> CARD DATABASE <span class="header-version">繁體中文索引</span></div>
+            <div class="header-note">
+                <span class="live-mark"></span>
+                <span class="header-database-label">CARD DATABASE</span>
+                <select id="language-select" class="header-language-select" aria-label="選擇語言">
+                    <option value="zh-Hant" selected>繁體中文指引</option>
+                    <option value="ko" lang="ko" disabled>韓文</option>
+                    <option value="en" lang="en" disabled>英文</option>
+                    <option value="ja" lang="ja" disabled>日文</option>
+                </select>
+            </div>
             <button id="theme-toggle" class="theme-toggle" type="button" aria-label="切換至淺色主題" aria-pressed="false"><span aria-hidden="true">☾</span></button>
         </div>
     </header>
@@ -38,6 +64,7 @@
             </div>
             <div class="intro-index" aria-hidden="true">SP<br><span>001</span></div>
             <div class="intro-actions">
+                <button id="toggle-enhancement-simulator" class="simulator-toggle is-transparent" type="button" aria-label="人物預覽" aria-controls="enhancement-simulator-panel" aria-expanded="false">人物預覽</button>
                 <button id="toggle-currency" class="currency-toggle" type="button" aria-controls="currency-panel" aria-pressed="false">通貨</button>
                 <button id="toggle-compare" class="compare-toggle" type="button" aria-controls="compare-panel" aria-expanded="true">裝備預覽</button>
                 <a id="open-feedback" class="feedback-button" href="#player-comments">玩家留言</a>
@@ -46,6 +73,41 @@
         </section>
 
         <div id="catalog-view">
+        <section id="enhancement-simulator-panel" class="enhancement-simulator-panel" aria-labelledby="enhancement-simulator-heading" hidden>
+            <div class="enhancement-simulator-content">
+                <div class="character-preview-heading">
+                    <h2 id="enhancement-simulator-heading">人物預覽</h2>
+                    <p class="enhancement-character-preview-hint">使用方向鍵、WASD 或虛擬方向鍵移動人物</p>
+                    <span class="character-preview-build-status">建置中...</span>
+                </div>
+                <div class="character-preview-stage">
+                    <canvas id="enhancement-character-preview" class="enhancement-character-preview" width="640" height="280" role="img" tabindex="0" aria-label="人物移動區，使用方向鍵或 WASD 移動"></canvas>
+                    <div class="character-preview-controls">
+                        <div class="character-preview-mode-toggles" role="group" aria-label="角色模式">
+                            <button id="character-preview-tier-toggle" class="character-preview-mode-toggle" type="button" aria-label="切換普角或高角" aria-pressed="false">普角</button>
+                            <button id="character-preview-alternate-toggle" class="character-preview-mode-toggle" type="button" aria-label="切換異色角色" aria-pressed="false" disabled>異色</button>
+                        </div>
+                        <div class="character-preview-direction-pad" role="group" aria-label="虛擬方向鍵">
+                            <button class="character-preview-direction" type="button" data-keys="ArrowUp ArrowLeft" aria-label="向左上移動">↖</button>
+                            <button class="character-preview-direction" type="button" data-keys="ArrowUp" aria-label="向上移動">↑</button>
+                            <button class="character-preview-direction" type="button" data-keys="ArrowUp ArrowRight" aria-label="向右上移動">↗</button>
+                            <button class="character-preview-direction" type="button" data-keys="ArrowLeft" aria-label="向左移動">←</button>
+                            <span class="character-preview-direction-center" aria-hidden="true"></span>
+                            <button class="character-preview-direction" type="button" data-keys="ArrowRight" aria-label="向右移動">→</button>
+                            <button class="character-preview-direction" type="button" data-keys="ArrowDown ArrowLeft" aria-label="向左下移動">↙</button>
+                            <button class="character-preview-direction" type="button" data-keys="ArrowDown" aria-label="向下移動">↓</button>
+                            <button class="character-preview-direction" type="button" data-keys="ArrowDown ArrowRight" aria-label="向右下移動">↘</button>
+                        </div>
+                    </div>
+                </div>
+                <p id="enhancement-character-preview-status" class="enhancement-character-preview-status" role="status">讀取角色圖集中...</p>
+                <div class="character-preview-roster-heading">
+                    <strong>角色選擇</strong>
+                    <span id="character-preview-roster-count">讀取中...</span>
+                </div>
+                <div id="character-preview-roster" class="character-preview-roster" role="group" aria-label="選擇人物"></div>
+            </div>
+        </section>
         <section id="compare-panel" class="compare-panel" data-comparison-index="0" aria-labelledby="compare-heading">
             <div class="compare-panel-heading">
                 <h2 id="compare-heading">裝備預覽</h2>
@@ -125,14 +187,27 @@
                 <a class="character-stat-source" href="https://survivalproject.fandom.com/wiki/Characters" target="_blank" rel="noreferrer">角色資料來源：Survival Project Wiki</a>
             </section>
             <section class="goblin-calculator" aria-label="哥布林傷害試算">
-                <p class="goblin-hit-count" aria-live="polite"><strong>哥布林 6次</strong></p>
-                <div class="goblin-damage-meter" role="meter" aria-label="每擊傷害佔哥布林生命值比例" aria-valuemin="0" aria-valuemax="120" aria-valuenow="23">
-                    <span class="goblin-damage-fill"></span>
+                <div class="goblin-hit-row" data-goblin-type="beginner">
+                    <p class="goblin-hit-count" aria-live="polite">新手哥布林 <strong class="goblin-hit-count-number">6次</strong></p>
+                    <div class="goblin-damage-meter" role="meter" aria-label="每擊傷害佔新手哥布林生命值比例" aria-valuemin="0" aria-valuemax="125" aria-valuenow="23">
+                        <span class="goblin-damage-fill"></span>
+                    </div>
+                    <div class="goblin-hp-summary" aria-live="polite">
+                        <strong class="goblin-hit-damage">23</strong><span aria-hidden="true">/</span>
+                        <input class="goblin-hp-input" data-goblin-type="beginner" type="number" min="1" max="9999" value="125" aria-label="新手哥布林生命值">
+                    </div>
                 </div>
-                <div class="goblin-hp-summary" aria-live="polite">
-                    <strong class="goblin-hit-damage">23</strong><span aria-hidden="true">/</span>
-                    <input class="goblin-hp-input" type="number" min="1" max="9999" value="120" aria-label="哥布林生命值">
+                <div class="goblin-hit-row" data-goblin-type="hero">
+                    <p class="goblin-hit-count" aria-live="polite">英雄哥布林 <strong class="goblin-hit-count-number">6次</strong></p>
+                    <div class="goblin-damage-meter" role="meter" aria-label="每擊傷害佔英雄哥布林生命值比例" aria-valuemin="0" aria-valuemax="165" aria-valuenow="23">
+                        <span class="goblin-damage-fill"></span>
+                    </div>
+                    <div class="goblin-hp-summary" aria-live="polite">
+                        <strong class="goblin-hit-damage">23</strong><span aria-hidden="true">/</span>
+                        <input class="goblin-hp-input" data-goblin-type="hero" type="number" min="1" max="9999" value="165" aria-label="英雄哥布林生命值">
+                    </div>
                 </div>
+                <button class="goblin-damage-mode-toggle" type="button" aria-pressed="false" aria-label="切換為遠程傷害">遠程</button>
             </section>
         </section>
         <div id="compare-panel-actions" class="compare-panel-actions" hidden>
@@ -374,13 +449,14 @@
 
     <footer class="site-footer">
         <span>SURVIVAL PROJECT / CARD ARCHIVE</span>
-        <span class="footer-visits" aria-label="本日造訪次數，同一瀏覽器每日最多計入一次">
-            <img id="visit-counter" data-src="https://hits.sh/lucienwooo.github.io/Survival-Project-Data.svg?style=flat-square&amp;label=%E4%BB%8A%E6%97%A5&amp;color=transparent&amp;labelColor=transparent" alt="本日累計造訪次數">
+        <span class="footer-visits" aria-label="累計造訪次數">
+            <img id="visit-counter" data-src="https://visitor-badge.laobi.icu/badge?page_id=lucienwooo.Survival-Project-Data" alt="累計造訪次數">
             <span id="visit-counter-fallback" class="footer-visits-fallback" hidden>--</span>
         </span>
         <span class="footer-access">靜態圖鑑 · <button id="admin-entry" class="admin-entry" type="button" aria-haspopup="dialog" aria-controls="admin-dialog">裝備組合</button></span>
     </footer>
 
+    <!-- 1989/06/04 -->
     <dialog id="equipment-picker-dialog" class="equipment-picker-dialog" aria-labelledby="equipment-picker-dialog-title">
         <div class="equipment-picker-dialog-content">
             <div class="equipment-picker-heading">
