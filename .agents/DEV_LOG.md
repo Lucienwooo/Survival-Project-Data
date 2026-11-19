@@ -10,3 +10,6 @@
 - 2026-11-19 [Survival-Project-Data] 調整人物素質配色與雙欄排列、置中預覽欄標題 | app.js (素質列)、styles.css (配色/版面)、index.html (cache bust)
 - 2026-11-19 [Survival-Project-Data] 角色清單隱藏版本 1 並新增異色／普高角切換 | app.js (角色選擇)、index.html (切換列)、styles.css (按鈕)
 - 2026-11-19 [Survival-Project-Data] 隱藏人物預覽入口並新增本機圖集檢視器 | index.html (建置標籤)、styles.css (透明按鈕)、tools/sprite-atlas-viewer.html (裁切/Anchor/影格順序)
+- 2026-11-19 [Survival-Project-Data] 排除本機圖片以避免誤推至公開網站 | .gitignore (本機素材)
+- 2026-11-19 [Survival-Project-Data] 整理本機工具與規則並限定 Pages 部署白名單 | .github/workflows/pages.yml (部署內容)、.gitignore (local-only)
+- 2026-11-19 [Survival-Project-Data] README 收錄 HTML 註記與本機圖片路徑（圖片不公開） | README.md (專案說明)

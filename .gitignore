@@ -1,1 +1,4 @@
 /data/cards.local-backup.json
+/local-only/
+/site-artifact/
+/.tok/
