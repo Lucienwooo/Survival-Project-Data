@@ -1,4 +1,6 @@
 // 1989/06/04
+import { createKB2Input, KB2_BUTTON } from "./character-preview-controls.js?v=1";
+
 const DATA_URL = new URL("https://lucienwooo.github.io/Survival-Project-Data/data/cards.json", import.meta.url);
 const LOCAL_BACKUP_DATA_URL = new URL("./data/cards.local-backup.json", import.meta.url);
 const ART_BASE_URL = new URL("./images/global_card_images/", import.meta.url);
@@ -1174,8 +1176,8 @@ function createComparisonState() {
         characterId: 1,
         normalCharacter: false,
         goblinDamageType: "melee",
-        beginnerGoblinHp: 125,
-        heroGoblinHp: 165,
+        beginnerGoblinHp: 120,
+        heroGoblinHp: 155,
         locked: false,
         equipmentApplied: { magic: false, weapon: false, armor: false },
         slots: { magic: null, weapon: null, armor: null }
@@ -1365,10 +1367,8 @@ async function initializeEnhancementCharacterPreview() {
     const status = document.querySelector("#enhancement-character-preview-status");
     const roster = document.querySelector("#character-preview-roster");
     const rosterCount = document.querySelector("#character-preview-roster-count");
-    const directionPad = document.querySelector(".character-preview-direction-pad");
-    const characterTierToggle = document.querySelector("#character-preview-tier-toggle");
     const alternateColorToggle = document.querySelector("#character-preview-alternate-toggle");
-    if (!panel || !canvas || !status || !roster || !rosterCount || !directionPad || !characterTierToggle || !alternateColorToggle) {
+    if (!panel || !canvas || !status || !roster || !rosterCount || !alternateColorToggle) {
         console.error("Unable to initialize the character preview: required elements are missing.");
         return;
     }
@@ -1390,12 +1390,16 @@ async function initializeEnhancementCharacterPreview() {
         down: "下",
         downRight: "右下"
     };
-    const keyToInput = new Map([
-        ["ArrowUp", "up"], ["ArrowDown", "down"], ["ArrowLeft", "left"], ["ArrowRight", "right"],
-        ["KeyW", "up"], ["KeyS", "down"], ["KeyA", "left"], ["KeyD", "right"]
-    ]);
-    const pressedInputs = new Set();
+    const directionOrder = ["right", "upRight", "up", "upLeft", "left", "downLeft", "down", "downRight"];
+    const facingStep = 2 * Math.PI / directionOrder.length;
+    // Rates are local preview tuning until there is an original movement trace.
+    const accelerationRate = 12;
+    const dragRate = 6;
+    const kb2Input = createKB2Input();
     const thumbnailButtons = new Map();
+    const assetVersion = "70";
+    // The atlas has poses only, so the preview shows them before the full attack interval ends.
+    const attackAnimationRatio = 0.30;
     let sprites = [];
     let baseSprites = [];
     let spritesById = new Map();
@@ -1404,8 +1408,14 @@ async function initializeEnhancementCharacterPreview() {
     let selectedBaseSprite = null;
     let alternateColorEnabled = false;
     let activeScale = 1;
-    let currentDirection = "down";
+    let movementBounds;
+    let previewAction = "idle";
+    let heading = Math.PI / 2;
+    let previewActionStartedAt = 0;
+    let previewActionDuration = 0;
+    let attackReadyAt = 0;
     let currentPosition = { x: canvas.width / 2, y: canvas.height * 0.72 };
+    const velocity = { x: 0, y: 0 };
     let animationFrameId = null;
     let previousTimestamp = 0;
     let selectionRequest = 0;
@@ -1419,35 +1429,38 @@ async function initializeEnhancementCharacterPreview() {
         if (!panel.hidden) canvas.focus();
     });
 
-    const getMovementVector = () => {
-        const horizontal = (pressedInputs.has("right") ? 1 : 0) - (pressedInputs.has("left") ? 1 : 0);
-        const vertical = (pressedInputs.has("down") ? 1 : 0) - (pressedInputs.has("up") ? 1 : 0);
-        const magnitude = Math.hypot(horizontal, vertical);
-        return magnitude ? { x: horizontal / magnitude, y: vertical / magnitude } : null;
+    const previewCharacter = () => {
+        const match = /^character(\d+)(?:_1)?$/.exec(activeSprite?.id ?? "");
+        const atlasNumber = Number(match?.[1]);
+        // The catalog pairs characters 1–12 with their premium forms 13–24.
+        if (atlasNumber >= 1 && atlasNumber <= characters.length * 2) {
+            return characters[(atlasNumber - 1) % characters.length];
+        }
+        return characters.find((item) => item.id === comparisonStates[0].characterId) || characters[0];
     };
 
-    const directionFromVector = (vector) => {
-        if (vector.y < 0) return vector.x < 0 ? "upLeft" : vector.x > 0 ? "upRight" : "up";
-        if (vector.y > 0) return vector.x < 0 ? "downLeft" : vector.x > 0 ? "downRight" : "down";
-        return vector.x < 0 ? "left" : "right";
-    };
-
-    const updateStatus = (moving) => {
+    const updateStatus = (action, direction) => {
         if (!activeSprite) return;
-        const nextStatus = `${activeSprite.label}｜${moving ? "移動中" : "待機中"}｜朝${directionLabels[currentDirection]}`;
+        const labels = { idle: "待機中", walk: "移動中", run: "奔跑中", backoff: "後退中",
+                         attackMelee: "近戰", attackRanged: "遠程", defense: "防禦" };
+        const note = activeSprite.actions ? "" : "｜動作順序待核對";
+        const nextStatus = `${activeSprite.label}｜${labels[action]}｜朝${directionLabels[direction]}${note}`;
         if (status.textContent !== nextStatus) status.textContent = nextStatus;
     };
 
     const clearPressedInputs = () => {
-        pressedInputs.clear();
-        directionPad.querySelectorAll(".is-pressed").forEach((button) => button.classList.remove("is-pressed"));
+        kb2Input.clear();
+        velocity.x = 0;
+        velocity.y = 0;
     };
 
     const loadImage = (source) => new Promise((resolve, reject) => {
         const image = new Image();
         image.addEventListener("load", () => resolve(image), { once: true });
         image.addEventListener("error", () => reject(new Error(`Unable to load image ${source}.`)), { once: true });
-        image.src = new URL(source, import.meta.url).href;
+        const url = new URL(source, import.meta.url);
+        url.searchParams.set("v", assetVersion);
+        image.src = url.href;
     });
 
     const loadSpriteSheet = async (sprite) => {
@@ -1456,23 +1469,7 @@ async function initializeEnhancementCharacterPreview() {
             throw new Error(`Unexpected sprite sheet dimensions for ${sprite.id}.`);
         }
 
-        const sheet = document.createElement("canvas");
-        sheet.width = sprite.width;
-        sheet.height = sprite.height;
-        const sheetContext = sheet.getContext("2d", { willReadFrequently: sprite.removeBlueKey });
-        if (!sheetContext) throw new Error(`Unable to create a canvas for ${sprite.id}.`);
-        sheetContext.imageSmoothingEnabled = false;
-        sheetContext.drawImage(image, 0, 0);
-        if (sprite.removeBlueKey) {
-            const imageData = sheetContext.getImageData(0, 0, sheet.width, sheet.height);
-            for (let index = 0; index < imageData.data.length; index += 4) {
-                if (imageData.data[index] === 0 && imageData.data[index + 1] === 0 && imageData.data[index + 2] === 255) {
-                    imageData.data[index + 3] = 0;
-                }
-            }
-            sheetContext.putImageData(imageData, 0, 0);
-        }
-        return sheet;
+        return image;
     };
 
     const drawThumbnail = (button, sprite, sheet) => {
@@ -1500,29 +1497,58 @@ async function initializeEnhancementCharacterPreview() {
 
         const delta = previousTimestamp ? Math.min((timestamp - previousTimestamp) / 1000, 0.05) : 0;
         previousTimestamp = timestamp;
-        const movement = getMovementVector();
-        if (movement) {
-            currentDirection = directionFromVector(movement);
-            currentPosition.x += movement.x * 150 * delta;
-            currentPosition.y += movement.y * 150 * delta;
+        const input = kb2Input.takeFrame();
+        const turnBonus = getAppliedCharacterStatBonus("turn_speed", 0, (slot) => slot === "armor");
+        const turnInterval = Math.max(35, 210 / Math.max(0.2, previewCharacter().turnSpeed * (1 + turnBonus / 100)));
+        heading = (heading + input.x * facingStep * delta * 1000 / turnInterval) % (2 * Math.PI);
+        const facingIndex = (Math.round(-heading / facingStep) + directionOrder.length) % directionOrder.length;
+        const direction = directionOrder[facingIndex];
+        if (previewAction !== "idle" && timestamp >= previewActionStartedAt + previewActionDuration) {
+            previewAction = "idle";
         }
+        if (input.buttons & KB2_BUTTON.block) startAction("defense", timestamp);
+        if (input.buttons & KB2_BUTTON.melee) startAction("attackMelee", timestamp);
+        if (input.buttons & KB2_BUTTON.ranged) startAction("attackRanged", timestamp);
 
-        const actionName = movement ? "walk" : "idle";
-        const spriteAction = activeSprite.actions && activeSprite.actions[actionName];
-        const actionFrames = spriteAction && spriteAction[currentDirection]
-            ? spriteAction[currentDirection]
-            : spritesManifest.actions[actionName][currentDirection];
-        const frameRate = movement ? spritesManifest.walkFps : spritesManifest.idleFps;
-        const animationIndex = Math.floor(timestamp * frameRate / 1000) % actionFrames.length;
+        const guarding = previewAction === "defense";
+        const forward = !guarding && (input.y < 0 || input.run);
+        const reverse = !guarding && !forward && input.blockHeld;
+        const running = forward && input.run;
+        const moving = forward || reverse;
+        const movementBonus = moving ? getAppliedCharacterStatBonus("max_speed", 0, (slot) => slot === "armor") : 0;
+        const speed = 150 * Math.max(0.2, 1 + movementBonus / 100);
+        const targetSpeed = running ? speed * 1.5 : forward ? speed : reverse ? -speed : 0;
+        const response = 1 - Math.exp(-(moving ? accelerationRate : dragRate) * delta);
+        velocity.x += (Math.cos(heading) * targetSpeed - velocity.x) * response;
+        velocity.y += (Math.sin(heading) * targetSpeed - velocity.y) * response;
+        currentPosition.x += velocity.x * delta;
+        currentPosition.y += velocity.y * delta;
+
+        const movementAction = reverse ? "backoff" : running ? "run" : "walk";
+        const actionName = moving && previewAction === "idle" ? movementAction : previewAction;
+        // Keep the neutral pose for guard until its original frames are verified.
+        const visualAction = guarding ? "idle" : actionName === "backoff" ? "walk" : actionName;
+        const actionFrames = activeSprite.actions?.[visualAction]?.[direction]
+            || spritesManifest.actions[visualAction]?.[direction]
+            || activeSprite.actions?.idle?.[direction]
+            || spritesManifest.actions.idle[direction];
+        const oneShotAction = actionName === "attackMelee" || actionName === "attackRanged";
+        const animationClock = oneShotAction ? Math.max(0, timestamp - previewActionStartedAt) : timestamp;
+        const frameRate = actionName === "idle" ? spritesManifest.idleFps : spritesManifest.walkFps;
+        const rawFrameIndex = Math.floor(oneShotAction
+            ? animationClock * actionFrames.length / previewActionDuration
+            : animationClock * frameRate / 1000);
+        const animationIndex = oneShotAction
+            ? Math.min(actionFrames.length - 1, rawFrameIndex)
+            : guarding ? 0 : rawFrameIndex % actionFrames.length;
         const frame = activeSprite.frames[actionFrames[animationIndex]];
         const [sourceX, sourceY, sourceWidth, sourceHeight, anchorX, anchorY] = frame;
         const scale = activeScale;
-        const minX = anchorX * scale + 8;
-        const maxX = canvas.width - (sourceWidth - anchorX) * scale - 8;
-        const minY = anchorY * scale + 8;
-        const maxY = canvas.height - (sourceHeight - anchorY) * scale - 8;
-        currentPosition.x = Math.min(maxX, Math.max(minX, currentPosition.x));
-        currentPosition.y = Math.min(maxY, Math.max(minY, currentPosition.y));
+        const x = Math.min(movementBounds.maxX, Math.max(movementBounds.minX, currentPosition.x));
+        const y = Math.min(movementBounds.maxY, Math.max(movementBounds.minY, currentPosition.y));
+        if (x !== currentPosition.x) velocity.x = 0;
+        if (y !== currentPosition.y) velocity.y = 0;
+        currentPosition = { x, y };
 
         context.clearRect(0, 0, canvas.width, canvas.height);
         context.imageSmoothingEnabled = false;
@@ -1537,7 +1563,7 @@ async function initializeEnhancementCharacterPreview() {
             Math.round(sourceWidth * scale),
             Math.round(sourceHeight * scale)
         );
-        updateStatus(Boolean(movement));
+        updateStatus(actionName, direction);
         animationFrameId = requestAnimationFrame(renderFrame);
     };
 
@@ -1556,6 +1582,7 @@ async function initializeEnhancementCharacterPreview() {
 
     const selectSprite = async (sprite, button) => {
         const requestId = ++selectionRequest;
+        clearPressedInputs();
         roster.querySelectorAll(".character-preview-option").forEach((option) => {
             option.setAttribute("aria-pressed", String(option === button));
         });
@@ -1568,11 +1595,22 @@ async function initializeEnhancementCharacterPreview() {
             if (requestId !== selectionRequest) return;
             activeSprite = sprite;
             activeSheet = sheet;
-            const maxFrameWidth = Math.max(...sprite.frames.map((frame) => frame[2]));
-            const maxFrameHeight = Math.max(...sprite.frames.map((frame) => frame[3]));
-            activeScale = Math.min(1.7, canvas.height * 0.62 / maxFrameHeight, canvas.width * 0.5 / maxFrameWidth);
-            currentDirection = "down";
-            currentPosition = { x: canvas.width / 2, y: canvas.height * 0.72 };
+            attackReadyAt = 0;
+            const left = Math.max(...sprite.frames.map((frame) => frame[4]));
+            const right = Math.max(...sprite.frames.map((frame) => frame[2] - frame[4]));
+            const top = Math.max(...sprite.frames.map((frame) => frame[5]));
+            const bottom = Math.max(...sprite.frames.map((frame) => frame[3] - frame[5]));
+            activeScale = Math.min(1.7, canvas.height * 0.62 / (top + bottom), canvas.width * 0.5 / (left + right));
+            movementBounds = {
+                minX: left * activeScale + 8, maxX: canvas.width - right * activeScale - 8,
+                minY: top * activeScale + 8, maxY: canvas.height - bottom * activeScale - 8
+            };
+            previewAction = "idle";
+            heading = Math.PI / 2;
+            currentPosition = {
+                x: (movementBounds.minX + movementBounds.maxX) / 2,
+                y: (movementBounds.minY + movementBounds.maxY) / 2
+            };
             canvas.focus({ preventScroll: true });
             syncAnimation();
         } catch (error) {
@@ -1606,47 +1644,32 @@ async function initializeEnhancementCharacterPreview() {
         );
     });
 
-    characterTierToggle.addEventListener("click", () => {
-        const highCharacterEnabled = characterTierToggle.getAttribute("aria-pressed") !== "true";
-        characterTierToggle.textContent = highCharacterEnabled ? "高角" : "普角";
-        characterTierToggle.setAttribute("aria-pressed", String(highCharacterEnabled));
-    });
+    const startAction = (action, timestamp) => {
+        if (action !== "defense" && !activeSprite.actions?.[action]) return;
+        if (previewAction !== "idle" && timestamp < previewActionStartedAt + previewActionDuration) return;
+        if (action !== "defense" && timestamp < attackReadyAt) return;
+        previewAction = action;
+        previewActionStartedAt = timestamp;
+        if (action === "defense") {
+            previewActionDuration = 700 * Math.max(0.2, 1 + getAppliedCharacterStatBonus("defense_time", 0) / 100);
+        } else {
+            const type = action === "attackRanged" ? "ranged" : "melee";
+            const interval = calculateCharacterAttackInterval(previewCharacter(), type, 0) * 1000;
+            previewActionDuration = interval * attackAnimationRatio;
+            attackReadyAt = timestamp + interval;
+        }
+    };
 
-    const handleKeyDown = (event) => {
-        const input = keyToInput.get(event.code);
-        if (!input || panel.hidden || document.activeElement !== canvas) return;
-        event.preventDefault();
-        pressedInputs.add(input);
-    };
-    const handleKeyUp = (event) => {
-        const input = keyToInput.get(event.code);
-        if (!input || !pressedInputs.has(input)) return;
-        event.preventDefault();
-        pressedInputs.delete(input);
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    document.addEventListener("keyup", handleKeyUp);
+    document.addEventListener("keydown", (event) => {
+        if (!panel.hidden && document.activeElement === canvas && kb2Input.keyDown(event.code)) {
+            event.preventDefault();
+        }
+    });
+    document.addEventListener("keyup", (event) => {
+        if (kb2Input.keyUp(event.code)) event.preventDefault();
+    });
     canvas.addEventListener("blur", clearPressedInputs);
     window.addEventListener("blur", clearPressedInputs);
-
-    directionPad.querySelectorAll(".character-preview-direction").forEach((button) => {
-        const inputs = button.dataset.keys.split(/\s+/).map((key) => keyToInput.get(key)).filter(Boolean);
-        const release = () => {
-            inputs.forEach((input) => pressedInputs.delete(input));
-            button.classList.remove("is-pressed");
-        };
-        button.addEventListener("pointerdown", (event) => {
-            if (event.button !== 0) return;
-            event.preventDefault();
-            inputs.forEach((input) => pressedInputs.add(input));
-            button.classList.add("is-pressed");
-            if (typeof button.setPointerCapture === "function") button.setPointerCapture(event.pointerId);
-            canvas.focus({ preventScroll: true });
-        });
-        button.addEventListener("pointerup", release);
-        button.addEventListener("pointercancel", release);
-        button.addEventListener("lostpointercapture", release);
-    });
 
     canvas.addEventListener("pointerdown", () => canvas.focus({ preventScroll: true }));
     const panelObserver = new MutationObserver(syncAnimation);
@@ -1659,7 +1682,7 @@ async function initializeEnhancementCharacterPreview() {
             const frames = actionMap[direction];
             return Array.isArray(frames)
                 && (exactLength === null
-                    ? frames.length > 0 && frames.length <= spritesManifest.framesPerDirection
+                    ? frames.length > 0 && frames.length <= 32
                     : frames.length === exactLength)
                 && frames.every((frameIndex) => (
                     Number.isInteger(frameIndex)
@@ -1669,7 +1692,7 @@ async function initializeEnhancementCharacterPreview() {
         })
     );
     try {
-        const response = await fetch(new URL("./data/character-preview-sprites.json?v=62", import.meta.url));
+        const response = await fetch(new URL(`./data/character-preview-sprites.json?v=${assetVersion}`, import.meta.url));
         if (!response.ok) throw new Error(`Character sprite manifest request failed: ${response.status}`);
         spritesManifest = await response.json();
         if (
@@ -1681,8 +1704,8 @@ async function initializeEnhancementCharacterPreview() {
             || !spritesManifest.thumbnailSheet
             || !Number.isInteger(spritesManifest.thumbnailWidth)
             || !Number.isInteger(spritesManifest.thumbnailHeight)
-            || ["idle", "walk"].some((action) => (
-                !isValidActionMap(spritesManifest.actions[action], 56, spritesManifest.framesPerDirection)
+            || ["idle", "walk", "run"].some((action) => (
+                !isValidActionMap(spritesManifest.actions[action], action === "run" ? 80 : 56, spritesManifest.framesPerDirection)
             ))
             || spritesManifest.sprites.some((sprite) => (
                 !Array.isArray(sprite.frames)
@@ -1707,7 +1730,7 @@ async function initializeEnhancementCharacterPreview() {
                     || frame[5] > frame[3]
                 ))
                 || (sprite.actions && (
-                    Object.keys(sprite.actions).some((action) => !["idle", "walk"].includes(action))
+                    Object.keys(sprite.actions).some((action) => !["idle", "walk", "attackMelee", "attackRanged", "defense"].includes(action))
                     || Object.entries(sprite.actions).some(([action, actionMap]) => (
                         !isValidActionMap(actionMap, sprite.frames.length, null)
                     ))
@@ -1720,7 +1743,7 @@ async function initializeEnhancementCharacterPreview() {
         }
         sprites = spritesManifest.sprites;
         spritesById = new Map(sprites.map((sprite) => [sprite.id, sprite]));
-        baseSprites = sprites.filter((sprite) => !sprite.id.endsWith("_1"));
+        baseSprites = sprites.filter((sprite) => !sprite.shadowOnly && !sprite.id.endsWith("_1"));
     } catch (error) {
         status.textContent = "角色圖集名單載入失敗";
         console.error("Unable to load the character sprite manifest.", error);
@@ -2219,11 +2242,11 @@ function getAppliedCharacterStatBonus(statKey, comparisonIndex, matchesSelection
 
 function calculateCharacterAttackInterval(character, damageType, comparisonIndex) {
     const weaponTypes = damageType === "melee" ? ["axe", "sword"] : ["bow", "wand"];
-    const attackSpeedBonus = getAppliedCharacterStatBonus("attack_speed", comparisonIndex);
-    const attackTimeBonus = getAppliedCharacterStatBonus("attack_time", comparisonIndex,
-        (slot, selection) => slot === "weapon" && weaponTypes.includes(selection.card.art_subtype));
+    const matchesWeapon = (slot, selection) => slot === "weapon" && weaponTypes.includes(selection.card.art_subtype);
+    const attackSpeedBonus = getAppliedCharacterStatBonus("attack_speed", comparisonIndex, matchesWeapon);
+    const attackTimeBonus = getAppliedCharacterStatBonus("attack_time", comparisonIndex, matchesWeapon);
     const speedMultiplier = Math.max(0.01, 1 + attackSpeedBonus / 100);
-    const timeMultiplier = Math.max(0.01, attackTimeBonus < 0 ? Math.abs(attackTimeBonus) / 100 : 1 + attackTimeBonus / 100);
+    const timeMultiplier = Math.max(0.01, 1 + attackTimeBonus / 100);
     return character[`${damageType}Speed`] * timeMultiplier / speedMultiplier;
 }
 

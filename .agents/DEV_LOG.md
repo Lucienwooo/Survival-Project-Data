@@ -13,3 +13,15 @@
 - 2026-11-19 [Survival-Project-Data] 排除本機圖片以避免誤推至公開網站 | .gitignore (本機素材)
 - 2026-11-19 [Survival-Project-Data] 整理本機工具與規則並限定 Pages 部署白名單 | .github/workflows/pages.yml (部署內容)、.gitignore (local-only)
 - 2026-11-19 [Survival-Project-Data] README 收錄 HTML 註記與本機圖片路徑（圖片不公開） | README.md (專案說明)
+- 2026-11-22 [Survival-Project-Data] 角色預覽改用 HAR 原始 264 影格與 hotspot 定位 | data/character-preview-sprites.json, app.js
+- 2026-11-22 [Survival-Project-Data] 修正角色圖集尺寸驗證失敗，加入 HAR 攻擊與防禦動作及依裝備攻速播放 | app.js, index.html, data/character-preview-sprites.json
+- 2026-11-22 [Survival-Project-Data] 分離近戰遠程防禦序列，修正異色版錨點並套用鞋子移速 | app.js, index.html, data/character-preview-sprites.json
+- 2026-11-22 [Survival-Project-Data] 修正攻擊分組，加入 HAR 復刻操作與衝刺旋轉前進控制 | app.js, index.html, data/character-preview-sprites.json
+- 2026-11-22 [Survival-Project-Data] 修復復刻操作單次播放、A 前進衝刺與轉向速度套用 | app.js, data/character-preview-sprites.json
+- 2026-11-24 [Survival-Project-Data] 覆蓋網頁 CA 與透明圖集，補角色25並修正 KB2 轉向、複合鍵和錨點邊界 | app.js (initializeEnhancementCharacterPreview)、data/character-preview-sprites.json
+- 2026-11-24 [Survival-Project-Data] 依 HAR 修正 KB2 奔跑與格擋輸入、校對防禦姿勢與跑步圖格、統一攻擊計時與負倍率 | app.js (initializeEnhancementCharacterPreview/calculateCharacterAttackInterval)、data/character-preview-sprites.json
+- 2026-11-24 [Survival-Project-Data] 將 HAR KB2 輸入契約接入人物預覽並比對4096種鍵位組合 | character-preview-controls.js (createKB2Input)、app.js
+- 2026-11-24 [Survival-Project-Data] 修正 A 單鍵衝刺與畫布重生位置、分離出招影格與攻擊間隔、限制武器類型加成 | app.js (initializeEnhancementCharacterPreview/calculateCharacterAttackInterval)
+- 2026-11-25 [Survival-Project-Data] 人物預覽收斂為單一網頁 KB2、保留角色選擇，衝刺改用捕捉圖集第7至9組 | app.js (initializeEnhancementCharacterPreview)、index.html、styles.css、data/character-preview-sprites.json
+- 2026-11-25 [Survival-Project-Data] 修正 KB2 單鍵衝刺、連續轉向、放鍵滑行及防禦轉後退 | app.js (initializeEnhancementCharacterPreview), index.html
+- 2026-11-26 [Survival-Project-Data] 森林哥布林預設 120／155 HP，補齊 1–9 級英文裝備卡並驗證 648 張圖檔 | app.js (createComparisonState)、index.html、images (69 張 Level 大卡)

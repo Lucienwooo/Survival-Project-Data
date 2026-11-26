@@ -24,8 +24,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./styles.css?v=52">
-    <script type="module" src="./app.js?v=65"></script>
+    <link rel="stylesheet" href="./styles.css?v=53">
+    <script type="module" src="./app.js?v=71"></script>
 </head>
 <body>
     <!-- 1989/06/04 --
@@ -105,33 +105,14 @@
             <div class="enhancement-simulator-content">
                 <div class="character-preview-heading">
                     <h2 id="enhancement-simulator-heading">人物預覽</h2>
-                    <p class="enhancement-character-preview-hint">使用方向鍵、WASD 或虛擬方向鍵移動人物</p>
-                    <span class="character-preview-build-status">建置中...</span>
+                    <p id="character-preview-keys" class="enhancement-character-preview-hint">←／→ 轉向，↑ 前進，A 衝刺，S 近戰，D 遠程，↓ 或空白鍵防禦、按住後退</p>
                 </div>
-                <div class="character-preview-stage">
-                    <canvas id="enhancement-character-preview" class="enhancement-character-preview" width="640" height="280" role="img" tabindex="0" aria-label="人物移動區，使用方向鍵或 WASD 移動"></canvas>
-                    <div class="character-preview-controls">
-                        <div class="character-preview-mode-toggles" role="group" aria-label="角色模式">
-                            <button id="character-preview-tier-toggle" class="character-preview-mode-toggle" type="button" aria-label="切換普角或高角" aria-pressed="false">普角</button>
-                            <button id="character-preview-alternate-toggle" class="character-preview-mode-toggle" type="button" aria-label="切換異色角色" aria-pressed="false" disabled>異色</button>
-                        </div>
-                        <div class="character-preview-direction-pad" role="group" aria-label="虛擬方向鍵">
-                            <button class="character-preview-direction" type="button" data-keys="ArrowUp ArrowLeft" aria-label="向左上移動">↖</button>
-                            <button class="character-preview-direction" type="button" data-keys="ArrowUp" aria-label="向上移動">↑</button>
-                            <button class="character-preview-direction" type="button" data-keys="ArrowUp ArrowRight" aria-label="向右上移動">↗</button>
-                            <button class="character-preview-direction" type="button" data-keys="ArrowLeft" aria-label="向左移動">←</button>
-                            <span class="character-preview-direction-center" aria-hidden="true"></span>
-                            <button class="character-preview-direction" type="button" data-keys="ArrowRight" aria-label="向右移動">→</button>
-                            <button class="character-preview-direction" type="button" data-keys="ArrowDown ArrowLeft" aria-label="向左下移動">↙</button>
-                            <button class="character-preview-direction" type="button" data-keys="ArrowDown" aria-label="向下移動">↓</button>
-                            <button class="character-preview-direction" type="button" data-keys="ArrowDown ArrowRight" aria-label="向右下移動">↘</button>
-                        </div>
-                    </div>
-                </div>
+                <canvas id="enhancement-character-preview" class="enhancement-character-preview" width="640" height="280" tabindex="0" aria-label="人物預覽畫布" aria-describedby="character-preview-keys"></canvas>
                 <p id="enhancement-character-preview-status" class="enhancement-character-preview-status" role="status">讀取角色圖集中...</p>
                 <div class="character-preview-roster-heading">
                     <strong>角色選擇</strong>
                     <span id="character-preview-roster-count">讀取中...</span>
+                    <button id="character-preview-alternate-toggle" class="character-preview-variant" type="button" aria-label="切換異色角色" aria-pressed="false" disabled>異色</button>
                 </div>
                 <div id="character-preview-roster" class="character-preview-roster" role="group" aria-label="選擇人物"></div>
             </div>
@@ -217,22 +198,22 @@
             <section class="goblin-calculator" aria-label="哥布林傷害試算">
                 <div class="goblin-hit-row" data-goblin-type="beginner">
                     <p class="goblin-hit-count" aria-live="polite">新手哥布林 <strong class="goblin-hit-count-number">6次</strong></p>
-                    <div class="goblin-damage-meter" role="meter" aria-label="每擊傷害佔新手哥布林生命值比例" aria-valuemin="0" aria-valuemax="125" aria-valuenow="23">
+                    <div class="goblin-damage-meter" role="meter" aria-label="每擊傷害佔新手哥布林生命值比例" aria-valuemin="0" aria-valuemax="120" aria-valuenow="23">
                         <span class="goblin-damage-fill"></span>
                     </div>
                     <div class="goblin-hp-summary" aria-live="polite">
                         <strong class="goblin-hit-damage">23</strong><span aria-hidden="true">/</span>
-                        <input class="goblin-hp-input" data-goblin-type="beginner" type="number" min="1" max="9999" value="125" aria-label="新手哥布林生命值">
+                        <input class="goblin-hp-input" data-goblin-type="beginner" type="number" min="1" max="9999" value="120" aria-label="新手哥布林生命值">
                     </div>
                 </div>
                 <div class="goblin-hit-row" data-goblin-type="hero">
-                    <p class="goblin-hit-count" aria-live="polite">英雄哥布林 <strong class="goblin-hit-count-number">6次</strong></p>
-                    <div class="goblin-damage-meter" role="meter" aria-label="每擊傷害佔英雄哥布林生命值比例" aria-valuemin="0" aria-valuemax="165" aria-valuenow="23">
+                    <p class="goblin-hit-count" aria-live="polite">英雄哥布林 <strong class="goblin-hit-count-number">7次</strong></p>
+                    <div class="goblin-damage-meter" role="meter" aria-label="每擊傷害佔英雄哥布林生命值比例" aria-valuemin="0" aria-valuemax="155" aria-valuenow="23">
                         <span class="goblin-damage-fill"></span>
                     </div>
                     <div class="goblin-hp-summary" aria-live="polite">
                         <strong class="goblin-hit-damage">23</strong><span aria-hidden="true">/</span>
-                        <input class="goblin-hp-input" data-goblin-type="hero" type="number" min="1" max="9999" value="165" aria-label="英雄哥布林生命值">
+                        <input class="goblin-hp-input" data-goblin-type="hero" type="number" min="1" max="9999" value="155" aria-label="英雄哥布林生命值">
                     </div>
                 </div>
                 <button class="goblin-damage-mode-toggle" type="button" aria-pressed="false" aria-label="切換為遠程傷害">遠程</button>
