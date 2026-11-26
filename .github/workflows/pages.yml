@@ -28,7 +28,7 @@ jobs:
       - name: Prepare Pages artifact
         run: |
           mkdir -p site-artifact/data site-artifact/images
-          cp index.html app.js styles.css site-artifact/
+          cp index.html app.js character-preview-controls.js styles.css site-artifact/
           cp data/cards.json data/character-preview-sprites.json site-artifact/data/
           rsync -a --exclude='寂寞習近平.jpg' images/ site-artifact/images/
       - name: Upload site artifact

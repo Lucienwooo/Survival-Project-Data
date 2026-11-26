@@ -1,7 +1,7 @@
 // 1989/06/04
-import { createKB2Input, KB2_BUTTON } from "./character-preview-controls.js?v=1";
+import { createKB2Input, KB2_BUTTON } from "./character-preview-controls.js?v=2";
 
-const DATA_URL = new URL("https://lucienwooo.github.io/Survival-Project-Data/data/cards.json", import.meta.url);
+const DATA_URL = new URL("./data/cards.json", import.meta.url);
 const LOCAL_BACKUP_DATA_URL = new URL("./data/cards.local-backup.json", import.meta.url);
 const ART_BASE_URL = new URL("./images/global_card_images/", import.meta.url);
 const CHARACTER_ART_URL = new URL("./images/characters/", import.meta.url);
