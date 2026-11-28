@@ -24,8 +24,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./styles.css?v=53">
-    <script type="module" src="./app.js?v=72"></script>
+    <link rel="stylesheet" href="./styles.css?v=55">
+    <script type="module" src="./app.js?v=74"></script>
 </head>
 <body>
     <!-- 1989/06/04 --
@@ -52,11 +52,12 @@
             <div class="header-note">
                 <span class="live-mark"></span>
                 <span class="header-database-label">CARD DATABASE</span>
-                <select id="language-select" class="header-language-select" aria-label="選擇語言">
-                    <option value="zh-Hant" selected>繁體中文指引</option>
-                    <option value="ko" lang="ko" disabled>韓文</option>
-                    <option value="en" lang="en" disabled>英文</option>
-                    <option value="ja" lang="ja" disabled>日文</option>
+                <label class="header-language-label" for="language-select">Language</label>
+                <select id="language-select" class="header-language-select" data-no-translate>
+                    <option value="zh-Hant" lang="zh-Hant" selected>繁體中文</option>
+                    <option value="en" lang="en">English</option>
+                    <option value="ko" lang="ko">한국어</option>
+                    <option value="ja" lang="ja">日本語</option>
                 </select>
             </div>
             <button id="theme-toggle" class="theme-toggle" type="button" aria-label="切換至淺色主題" aria-pressed="false"><span aria-hidden="true">☾</span></button>
@@ -328,7 +329,8 @@
                 <h2 id="player-comments-title">玩家留言</h2>
                 <p>歡迎回報資料錯誤、分享攻略或交流遊戲資訊。</p>
             </div>
-            <div id="giscus-comments" class="giscus-comments" aria-label="玩家留言討論區"></div>
+            <div id="player-comments-widget" class="player-comments-widget" data-waline-server="" aria-label="玩家留言討論區"></div>
+            <p id="player-comments-status" class="player-comments-status" role="status" hidden></p>
         </section>
         </div>
         <section id="currency-panel" class="currency-panel" aria-labelledby="currency-heading" hidden>

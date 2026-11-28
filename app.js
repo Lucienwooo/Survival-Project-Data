@@ -1,5 +1,6 @@
 // 1989/06/04
 import { createKB2Input, KB2_BUTTON } from "./character-preview-controls.js?v=2";
+import { commentLanguage, initializeLocalization, siteLanguage, sourceAttribute, sourceText, translate } from "./localization.js?v=1";
 
 const DATA_URL = new URL("./data/cards.json", import.meta.url);
 const LOCAL_BACKUP_DATA_URL = new URL("./data/cards.local-backup.json", import.meta.url);
@@ -138,11 +139,15 @@ const clearComparePanelButton = document.querySelector("#clear-compare-panels");
 const editorToolbar = document.querySelector("#editor-toolbar");
 const adminDialog = document.querySelector("#admin-dialog");
 const adminPasswordInput = document.querySelector("#admin-password");
-const giscusComments = document.querySelector("#giscus-comments");
+const commentsWidget = document.querySelector("#player-comments-widget");
+const walineServer = commentsWidget.dataset.walineServer.trim();
+const commentsStatus = document.querySelector("#player-comments-status");
+const walineClient = "https://unpkg.com/@waline/client@3.16.2/dist";
 const themeToggle = document.querySelector("#theme-toggle");
 const importCardFile = document.querySelector("#import-card-file");
 const editorStatus = document.querySelector(".editor-status");
-let giscusLoaded = false;
+let commentsLoading = false;
+let walineInstance;
 let nextResourceSelectId = 1;
 let editMode = false;
 let cards = [];
@@ -225,7 +230,7 @@ importCardFile.addEventListener("change", () => {
     importCardFile.value = "";
 });
 document.querySelector("#exit-edit-mode").addEventListener("click", exitEditMode);
-document.querySelector("#open-feedback").addEventListener("click", loadGiscus);
+document.querySelector("#open-feedback").addEventListener("click", loadPlayerComments);
 
 renderEffectFilters();
 initializeComparisonPanel(comparePanel, 0);
@@ -256,7 +261,12 @@ sponsorDialog.addEventListener("click", (event) => {
 });
 
 loadCatalog();
-initializeGiscus();
+initializeLocalization(() => {
+    walineInstance?.update({ lang: commentLanguage() });
+    if (!walineServer) syncGiscusTheme(document.documentElement.dataset.theme);
+    if (searchInput.value.trim()) renderCards();
+});
+initializePlayerComments();
 
 function initializeSupportPayment() {
     const presetButtons = SUPPORT_CONFIG.presetAmounts.map((amount) => {
@@ -404,7 +414,7 @@ function renderCards() {
     const selectedEffects = [...effectFilterOptions.querySelectorAll("input:checked")]
         .map((input) => ({ key: input.dataset.statKey, direction: input.dataset.statDirection }));
     const filtered = cards.filter((card) => {
-        const searchable = [card.name_zh, card.name_en, card.element]
+        const searchable = [card.name_zh, card.name_en, card.element, translate(card.name_zh || ""), translate(card.element || "")]
             .filter(Boolean)
             .join(" ")
             .toLocaleLowerCase("zh-TW");
@@ -874,27 +884,61 @@ function loadVisitCounter() {
     visitCounter.src = visitCounter.dataset.src;
 }
 
-function initializeGiscus() {
-    if (!giscusComments) return;
-    window.addEventListener("message", (event) => {
-        if (event.origin !== "https://giscus.app" || !event.data?.giscus?.ready) return;
-        syncGiscusTheme(document.documentElement.dataset.theme === "light" ? "light" : "dark");
-    });
+function initializePlayerComments() {
+    if (!walineServer) {
+        window.addEventListener("message", (event) => {
+            if (event.origin !== "https://giscus.app" || !event.data?.giscus?.ready) return;
+            syncGiscusTheme(document.documentElement.dataset.theme === "light" ? "light" : "dark");
+        });
+    }
     if (!("IntersectionObserver" in window)) {
-        loadGiscus();
+        loadPlayerComments();
         return;
     }
     const observer = new IntersectionObserver((entries, currentObserver) => {
         if (!entries.some((entry) => entry.isIntersecting)) return;
-        loadGiscus();
+        loadPlayerComments();
         currentObserver.disconnect();
     }, { rootMargin: "600px 0px" });
-    observer.observe(giscusComments);
+    observer.observe(commentsWidget);
+}
+
+async function loadPlayerComments() {
+    if (commentsLoading) return;
+    commentsLoading = true;
+    commentsStatus.hidden = true;
+
+    if (!walineServer) {
+        loadGiscus();
+        return;
+    }
+
+    const stylesheet = document.createElement("link");
+    stylesheet.rel = "stylesheet";
+    stylesheet.href = `${walineClient}/waline.css`;
+    const styleReady = new Promise((resolve, reject) => {
+        stylesheet.addEventListener("load", resolve, { once: true });
+        stylesheet.addEventListener("error", reject, { once: true });
+    });
+    document.head.append(stylesheet);
+
+    try {
+        const [{ init }] = await Promise.all([import(`${walineClient}/waline.js`), styleReady]);
+        walineInstance = init({
+            el: commentsWidget,
+            serverURL: walineServer,
+            path: "/Survival-Project-Data/player-comments",
+            lang: commentLanguage(),
+            dark: 'html[data-theme="dark"]',
+        });
+    } catch {
+        stylesheet.remove();
+        commentsStatus.textContent = "留言區暫時無法載入，請重新整理後再試。";
+        commentsStatus.hidden = false;
+    }
 }
 
 function loadGiscus() {
-    if (giscusLoaded) return;
-    giscusLoaded = true;
     const script = document.createElement("script");
     script.src = "https://giscus.app/client.js";
     script.async = true;
@@ -909,14 +953,15 @@ function loadGiscus() {
     script.dataset.emitMetadata = "0";
     script.dataset.inputPosition = "bottom";
     script.dataset.theme = document.documentElement.dataset.theme === "light" ? "light" : "dark";
-    script.dataset.lang = "zh-TW";
+    script.dataset.lang = siteLanguage() === "zh-Hant" ? "zh-TW" : siteLanguage();
     script.dataset.loading = "lazy";
-    giscusComments.append(script);
+    commentsWidget.append(script);
 }
 
 function syncGiscusTheme(theme) {
-    const frame = giscusComments?.querySelector(".giscus-frame");
-    frame?.contentWindow?.postMessage({ giscus: { setConfig: { theme } } }, "https://giscus.app");
+    const frame = commentsWidget.querySelector(".giscus-frame");
+    const lang = siteLanguage() === "zh-Hant" ? "zh-TW" : siteLanguage();
+    frame?.contentWindow?.postMessage({ giscus: { setConfig: { theme, lang } } }, "https://giscus.app");
 }
 
 function loginAdmin(event) {
@@ -1404,6 +1449,7 @@ async function initializeEnhancementCharacterPreview() {
     let baseSprites = [];
     let spritesById = new Map();
     let activeSprite = null;
+    let previousStatus;
     let activeSheet = null;
     let selectedBaseSprite = null;
     let alternateColorEnabled = false;
@@ -1445,7 +1491,10 @@ async function initializeEnhancementCharacterPreview() {
                          attackMelee: "近戰", attackRanged: "遠程", defense: "防禦" };
         const note = activeSprite.actions ? "" : "｜動作順序待核對";
         const nextStatus = `${activeSprite.label}｜${labels[action]}｜朝${directionLabels[direction]}${note}`;
-        if (status.textContent !== nextStatus) status.textContent = nextStatus;
+        if (previousStatus !== nextStatus) {
+            status.textContent = nextStatus;
+            previousStatus = nextStatus;
+        }
     };
 
     const clearPressedInputs = () => {
@@ -2708,7 +2757,8 @@ function enhanceResourceSelect(select) {
     const trigger = control.querySelector(".resource-select-trigger");
     const menu = control.querySelector(".resource-select-menu");
     trigger.disabled = select.disabled;
-    trigger.setAttribute("aria-label", select.getAttribute("aria-label") || select.labels?.[0]?.textContent.trim() || "選擇能力");
+    const label = select.labels?.[0]?.querySelector(":scope > span");
+    trigger.setAttribute("aria-label", sourceAttribute(select, "aria-label") || (label && sourceText(label).trim()) || "選擇能力");
     menu.replaceChildren();
     for (const option of select.options) {
         const item = document.createElement("button");
@@ -2716,7 +2766,7 @@ function enhanceResourceSelect(select) {
         item.className = "resource-select-option";
         item.setAttribute("role", "option");
         item.setAttribute("aria-selected", String(option.value === select.value));
-        appendColorizedText(item, option.textContent);
+        appendColorizedText(item, sourceText(option));
         item.addEventListener("click", () => {
             select.value = option.value;
             select.dispatchEvent(new Event("change", { bubbles: true }));
@@ -2734,7 +2784,7 @@ function updateResourceSelect(control, select) {
     const display = control.querySelector(".resource-select-value");
     if (!display || !selectedOption) return;
     display.replaceChildren();
-    appendColorizedText(display, selectedOption.textContent);
+    appendColorizedText(display, sourceText(selectedOption));
     control.querySelectorAll(".resource-select-option").forEach((option, index) => {
         option.setAttribute("aria-selected", String(select.options[index]?.value === select.value));
     });

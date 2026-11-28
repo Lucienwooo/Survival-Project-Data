@@ -111,7 +111,6 @@ button, select { color: inherit; }
 }
 .live-mark { width: 7px; height: 7px; background: var(--acid); border-radius: 50%; }
 .header-language-select {
-    margin-left: 8px;
     padding: 2px 5px;
     color: var(--acid);
     background: var(--deep);
@@ -121,6 +120,7 @@ button, select { color: inherit; }
     font-size: 11px;
     letter-spacing: 0;
 }
+.header-language-label { margin-left: 5px; letter-spacing: 0; }
 .header-language-select option { color: var(--ink); background: var(--deep); }
 .header-language-select:focus-visible { outline: 1px solid var(--acid); outline-offset: 1px; }
 
@@ -596,7 +596,8 @@ button, select { color: inherit; }
 .player-comments-heading { margin-bottom: 14px; }
 .player-comments-heading h2 { margin: 0; color: var(--ink); font-size: 18px; }
 .player-comments-heading p { margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
-.giscus-comments, .giscus { width: 100%; max-width: 100%; min-width: 0; }
+.player-comments-widget, .giscus { width: 100%; max-width: 100%; min-width: 0; }
+.player-comments-status { color: var(--muted); font-size: 12px; }
 .site-footer { min-height: 53px; padding: 0 5.4vw; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px; color: var(--ink-soft); background: var(--deep); font-size: 10px; }
 .site-footer > span:first-child { justify-self: start; font-family: "Barlow Condensed", sans-serif; letter-spacing: 1px; }
 .footer-visits { display: inline-flex; align-items: center; justify-self: center; min-height: 20px; }
@@ -698,7 +699,8 @@ html[data-theme="light"] .footer-visits img { filter: invert(1); }
     .header-tools { gap: 8px; }
     .header-note { gap: 6px; font-size: 11px; }
     .theme-toggle { width: 34px; height: 34px; flex-basis: 34px; }
-    .header-language-select { margin-left: 2px; padding: 2px 3px; font-size: 9px; }
+    .header-language-label { margin-left: 0; }
+    .header-language-select { padding: 2px 3px; font-size: 10px; }
     .site-header { gap: 8px; padding: 0 12px; }
     .brand { gap: 7px; }
     .brand-name { font-size: 12px; }
