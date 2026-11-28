@@ -262,13 +262,13 @@ sponsorDialog.addEventListener("click", (event) => {
     if (event.target === sponsorDialog) sponsorDialog.close();
 });
 
-loadCatalog();
+const catalogReady = loadCatalog();
 initializeLocalization(() => {
     walineInstance?.update({ lang: commentLanguage(), path: walinePath, dark: walineDarkSelector });
     if (!walineServer) syncGiscusTheme(document.documentElement.dataset.theme);
     if (searchInput.value.trim()) renderCards();
 });
-initializePlayerComments();
+initializePlayerComments(catalogReady);
 
 function initializeSupportPayment() {
     const presetButtons = SUPPORT_CONFIG.presetAmounts.map((amount) => {
@@ -886,12 +886,21 @@ function loadVisitCounter() {
     visitCounter.src = visitCounter.dataset.src;
 }
 
-function initializePlayerComments() {
+function initializePlayerComments(catalogReady) {
     if (!walineServer) {
         window.addEventListener("message", (event) => {
             if (event.origin !== "https://giscus.app" || !event.data?.giscus?.ready) return;
             syncGiscusTheme(document.documentElement.dataset.theme === "light" ? "light" : "dark");
         });
+    }
+    if (window.location.hash === "#player-comments") {
+        loadPlayerComments();
+        catalogReady.then(() => {
+            if (window.location.hash === "#player-comments") {
+                document.querySelector("#player-comments").scrollIntoView({ behavior: "instant" });
+            }
+        });
+        return;
     }
     if (!("IntersectionObserver" in window)) {
         loadPlayerComments();
