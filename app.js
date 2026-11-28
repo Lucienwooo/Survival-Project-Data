@@ -265,6 +265,7 @@ sponsorDialog.addEventListener("click", (event) => {
 const catalogReady = loadCatalog();
 initializeLocalization(() => {
     walineInstance?.update({ lang: commentLanguage(), path: walinePath, dark: walineDarkSelector });
+    formatWalineRegions();
     if (!walineServer) syncGiscusTheme(document.documentElement.dataset.theme);
     if (searchInput.value.trim()) renderCards();
 });
@@ -942,10 +943,23 @@ async function loadPlayerComments() {
             lang: commentLanguage(),
             dark: walineDarkSelector,
         });
+        const regionObserver = new MutationObserver(formatWalineRegions);
+        regionObserver.observe(commentsWidget, { childList: true, subtree: true, characterData: true });
+        formatWalineRegions();
     } catch {
         stylesheet.remove();
         commentsStatus.textContent = "留言區暫時無法載入，請重新整理後再試。";
         commentsStatus.hidden = false;
+    }
+}
+
+function formatWalineRegions() {
+    const regionName = siteLanguage() === "zh-Hant" ? "台灣" : "Taiwan";
+    for (const region of commentsWidget.querySelectorAll(".wl-addr")) {
+        const label = region.textContent.trim();
+        if (label !== regionName && /^(?:[台臺][灣湾]省?|Taiwan)$/i.test(label)) {
+            region.textContent = regionName;
+        }
     }
 }
 
