@@ -143,6 +143,8 @@ const commentsWidget = document.querySelector("#player-comments-widget");
 const walineServer = commentsWidget.dataset.walineServer.trim();
 const commentsStatus = document.querySelector("#player-comments-status");
 const walineClient = "https://unpkg.com/@waline/client@3.16.2/dist";
+const walinePath = "/Survival-Project-Data/player-comments";
+const walineDarkSelector = 'html[data-theme="dark"]';
 const themeToggle = document.querySelector("#theme-toggle");
 const importCardFile = document.querySelector("#import-card-file");
 const editorStatus = document.querySelector(".editor-status");
@@ -262,7 +264,7 @@ sponsorDialog.addEventListener("click", (event) => {
 
 loadCatalog();
 initializeLocalization(() => {
-    walineInstance?.update({ lang: commentLanguage() });
+    walineInstance?.update({ lang: commentLanguage(), path: walinePath, dark: walineDarkSelector });
     if (!walineServer) syncGiscusTheme(document.documentElement.dataset.theme);
     if (searchInput.value.trim()) renderCards();
 });
@@ -927,9 +929,9 @@ async function loadPlayerComments() {
         walineInstance = init({
             el: commentsWidget,
             serverURL: walineServer,
-            path: "/Survival-Project-Data/player-comments",
+            path: walinePath,
             lang: commentLanguage(),
-            dark: 'html[data-theme="dark"]',
+            dark: walineDarkSelector,
         });
     } catch {
         stylesheet.remove();
